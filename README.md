@@ -72,7 +72,7 @@ Sur chaque page métier, la photo de l'équipe accompagne la carte des communes.
 La liste et la marche à suivre pour en changer sont dans
 `assets/img/photos/LISEZ-MOI.txt`.
 
-**Bandeau équipe** (accueil et page contact) : la photo de **Maxime, Pierre et
+**Bandeau équipe** (tout en haut de l'accueil et de la page contact, juste sous l'en-tête) : la photo de **Maxime, Pierre et
 Jérôme** devant le camion, en pleine largeur, avec le prénom de chacun posé
 sous lui, puis une bande marine avec le texte et le bouton d'appel. Prénoms et
 positions : `EQUIPE` dans `tools/data.py` ; le bandeau : `bandeau_equipe()`

@@ -1679,6 +1679,7 @@ def page_index():
         + header("accueil") + f"""
 
 <main id="contenu">
+{bandeau_equipe()}
 
 <section class="hero hero--accueil">
   <div class="container">
@@ -1709,7 +1710,6 @@ def page_index():
   </div>
 </section>
 {bandeau_stats()}
-{bandeau_equipe()}
 
 <section class="section" id="services">
   <div class="container">
@@ -1833,6 +1833,7 @@ def page_contact():
         + header("contact") + ariane(fil) + f"""
 
 <main id="contenu">
+{bandeau_equipe()}
 
 <section class="hero hero--compact">
   <div class="container">
@@ -1854,7 +1855,6 @@ def page_contact():
   </div>
 </section>
 {bandeau_stats()}
-{bandeau_equipe()}
 
 <section class="section">
   <div class="container grid grid--2">

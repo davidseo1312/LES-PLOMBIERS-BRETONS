@@ -136,9 +136,17 @@
     var heroVisible = true, finVisible = false;
     function majBarre() { barre.hidden = heroVisible || finVisible; }
 
-    new IntersectionObserver(function (e) {
-      heroVisible = e[0].isIntersecting; majBarre();
-    }, { rootMargin: "-120px 0px 0px 0px" }).observe(hero);
+    // Le bandeau équipe, quand il ouvre la page, compte comme le haut de
+    // page : la barre ne doit pas recouvrir son texte.
+    var hauts = [hero], equipe = document.querySelector("main > .equipe:first-child");
+    if (equipe) hauts.push(equipe);
+    var visibles = {};
+    var obsHaut = new IntersectionObserver(function (entrees) {
+      entrees.forEach(function (e) { visibles[hauts.indexOf(e.target)] = e.isIntersecting; });
+      heroVisible = Object.keys(visibles).some(function (k) { return visibles[k]; });
+      majBarre();
+    }, { rootMargin: "-120px 0px 0px 0px" });
+    hauts.forEach(function (el) { obsHaut.observe(el); });
 
     // masquée au pied de page : les mêmes appels s'y trouvent déjà, et la
     // barre viendrait recouvrir le contenu de fin de page
