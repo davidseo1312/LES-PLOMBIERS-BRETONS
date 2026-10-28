@@ -1,0 +1,2405 @@
+# -*- coding: utf-8 -*-
+"""
+Générateur statique du site Les Plombiers Bretons.
+
+    python3 tools/build.py
+
+Produit à la racine du dépôt :
+  · 8 landing pages (2 activités × 4 départements)
+  · index.html, contact.html, mentions-legales.html, cgu.html, 404.html
+  · sitemap.xml, robots.txt
+"""
+import hashlib
+import json
+import os
+import re
+import sys
+from datetime import date
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from data import (SITE, DEPARTEMENTS, ACTIVITES, REASSURANCE, ETAPES, STATS,  # noqa: E402
+                  PHOTOS_ACCUEIL, PHOTO_EQUIPE)
+from carte import CARTE_LARGEUR, CARTE_HAUTEUR, TRACES, CENTRES  # noqa: E402
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEL = SITE["tel"]
+TEL_LIEN = SITE["tel_lien"]
+EMAIL = SITE["email"]
+FORM_ENDPOINT = SITE.get("form_endpoint", "")
+BASE = SITE["url"]
+TODAY = date.today().isoformat()
+
+
+def empreinte(chemin):
+    """Empreinte courte d'un fichier statique, ajoutée à son URL.
+
+    Sans cela, un navigateur peut continuer à servir l'ancienne feuille de style
+    après une mise en ligne : le HTML est à jour, le CSS non, et la page casse.
+    """
+    with open(os.path.join(ROOT, chemin), "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()[:8]
+
+
+CSS = "/assets/css/style.css?v=" + empreinte("assets/css/style.css")
+JS = "/assets/js/main.js?v=" + empreinte("assets/js/main.js")
+
+# « des Côtes-d'Armor », « du Finistère », …
+DE = {"22": "des Côtes-d'Armor", "29": "du Finistère",
+      "35": "d'Ille-et-Vilaine", "56": "du Morbihan"}
+
+ACT = {a["key"]: a for a in ACTIVITES}
+from articles import ARTICLES
+DEPT = {d["num"]: d for d in DEPARTEMENTS}
+
+
+# ---------------------------------------------------------------- utilitaires
+def slug_landing(act, dept):
+    """Identifiant d'une landing page, sans extension."""
+    return "%s-%s-%s" % (act["slug"], dept["slug"], dept["num"])
+
+
+def url_landing(act, dept):
+    """URL publique d'une landing page, sans .html."""
+    return "/%s/" % slug_landing(act, dept)
+
+
+def fichier_landing(act, dept):
+    """Fichier à écrire : <slug>/index.html, servi tel quel par n'importe
+    quel hébergeur en /<slug>/ — aucune règle de réécriture nécessaire."""
+    return "%s/index.html" % slug_landing(act, dept)
+
+
+def fmt(txt, act=None, dept=None):
+    """Interpolation des jetons éditoriaux."""
+    if dept:
+        txt = (txt.replace("{art}", dept["article"])
+                  .replace("{Art}", dept["article_maj"])
+                  .replace("{dept}", dept["nom"])
+                  .replace("{num}", dept["num"])
+                  .replace("{du_dept}", DE[dept["num"]])
+                  .replace("{prefecture}", dept["prefecture"])
+                  .replace("{contexte}", dept["contexte"])
+                  .replace("{axes}", dept["axes"])
+                  .replace("{ville1}", dept["villes"][0])
+                  .replace("{ville2}", dept["villes"][1])
+                  .replace("{ville3}", dept["villes"][2]))
+    if act:
+        txt = (txt.replace("{pro_pluriel}", act["pro_pluriel"])
+                  .replace("{pro}", act["pro"])
+                  .replace("{activite}", act["nom_court"].lower()))
+    return txt.replace("{tel}", TEL)
+
+
+def clean(txt):
+    """Version texte brut (pour les balises meta et le JSON-LD)."""
+    return (txt.replace("&nbsp;", " ").replace("&amp;", "&")
+               .replace("&lt;", "<").replace("&gt;", ">")
+               .replace("&#39;", "'").replace("&quot;", '"'))
+
+
+SVG = {
+    "tel": '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.2.4 2.4.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.4 0 .8-.2 1l-2.3 2.2z"/></svg>',
+    "mail": '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/></svg>',
+    "pin": '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s7-6.4 7-12a7 7 0 0 0-14 0c0 5.6 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg>',
+    "form": '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>',
+    "fleche": '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+}
+
+# Pictogrammes au trait (et non en aplat) : c'est l'un des marqueurs du
+# style du site, avec les angles arrondis et la typographie à empattements.
+PICTOS = {
+    "horloge": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    "devis": '<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+    "medaille": '<circle cx="12" cy="9" r="6"/><path d="m9 14.5-2 6.5 5-2.5 5 2.5-2-6.5"/>',
+    "bouclier": '<path d="M12 3 4 6v6c0 4.4 3.4 8.3 8 9 4.6-.7 8-4.6 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+    "carte": '<path d="M12 21s7-6.4 7-12a7 7 0 0 0-14 0c0 5.6 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/>',
+    "check": '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    "alerte": '<path d="M12 4 2.5 20h19z"/><path d="M12 10v4.5M12 17.5v.01"/>',
+    "etoile": '<path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z"/>',
+    "mail": '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m4 7 8 6 8-6"/>',
+    "chrono": '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/>',
+    "zone": '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
+    "goutte": '<path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/>',
+    "outil": '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3 17.8 6.2 21l6.3-6.3a4 4 0 0 0 5.2-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
+}
+
+
+def picto(nom, taille=26):
+    # « etoile » reste pleine : une note se lit à la forme, pas au contour.
+    plein = nom == "etoile"
+    return ('<svg viewBox="0 0 24 24" width="%d" height="%d" fill="%s" stroke="%s" '
+            'stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" '
+            'aria-hidden="true">%s</svg>'
+            % (taille, taille, "currentColor" if plein else "none",
+               "none" if plein else "currentColor", PICTOS[nom]))
+
+
+ICONES = {
+    "degorgement": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v6a4 4 0 0 0 4 4h8"/><path d="M16 10v8M13 18h6"/><path d="M8 18c0 1.1-.9 2-2 2s-2-.9-2-2c0-1.4 2-3.5 2-3.5s2 2.1 2 3.5z"/></svg>',
+    "plomberie": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h6V5h6v4h4"/><path d="M13 9v4a3 3 0 0 1-3 3H4"/><path d="M18 14c0 1.7-1.3 3-3 3"/><path d="M19 17.5c0 1.4-1.1 2.5-2.5 2.5"/></svg>',
+}
+
+# Le logo est dessiné en SVG, en ligne : il reste net à toutes les tailles et
+# ne coûte aucune requête. La goutte porte une vague — la mer, le littoral.
+LOGO_SVG = ('<svg class="marque__ico" viewBox="0 0 48 48" width="44" height="44" '
+            'aria-hidden="true"><rect width="48" height="48" rx="14" fill="var(--encre)"/>'
+            '<path d="M24 9s11 11.6 11 19.5a11 11 0 0 1-22 0C13 20.6 24 9 24 9z" '
+            'fill="var(--ecume)"/><path d="M14.2 30.5c2.6 0 2.6-2 5.2-2s2.6 2 5.2 2 2.6-2 '
+            '5.2-2 2.6 2 4.2 2" fill="none" stroke="var(--corail)" stroke-width="2.6" '
+            'stroke-linecap="round"/></svg>')
+
+
+# ------------------------------------------------------------------ fragments
+def head(titre, description, canonical, extra_json=None, mots_cles="", extra_meta="",
+         og_type="website"):
+    """canonical=None : aucune balise canonique (page 404, en noindex)."""
+    jsonld = ""
+    for bloc in (extra_json or []):
+        jsonld += ('\n  <script type="application/ld+json">%s</script>'
+                   % json.dumps(bloc, ensure_ascii=False, separators=(",", ":")))
+    kw = ('\n  <meta name="keywords" content="%s">' % mots_cles) if mots_cles else ""
+    lien_canonique = ('  <link rel="canonical" href="%s%s">\n' % (BASE, canonical)) if canonical else ""
+    og_url = ('\n  <meta property="og:url" content="%s%s">' % (BASE, canonical)) if canonical else ""
+    return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{titre}</title>
+  <meta name="description" content="{description}">{kw}
+{lien_canonique}
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+  <meta name="author" content="{SITE['nom']}">
+  <meta name="theme-color" content="#0d2a33">
+  <meta property="og:type" content="{og_type}">
+  <meta property="og:site_name" content="{SITE['nom']}">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="{titre}">
+  <meta property="og:description" content="{description}">
+{og_url}
+  <meta property="og:image" content="{BASE}/assets/img/partage.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Les Plombiers Bretons — plomberie et dégorgement en Bretagne">
+  <meta name="twitter:card" content="summary_large_image">{extra_meta}
+  <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/img/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/img/favicon.png">
+  <link rel="preload" href="/assets/fonts/manrope-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/fraunces-600.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{CSS}">{jsonld}
+</head>
+<body>
+<a class="sr-only" href="#contenu">Aller au contenu principal</a>"""
+
+
+def nav_zones():
+    """Menu déroulant des 8 pages métier."""
+    out = []
+    for act in ACTIVITES:
+        liens = "".join(
+            '<a href="%s"><span class="sub__num">%s</span>%s</a>'
+            % (url_landing(act, d), d["num"], d["nom"])
+            for d in DEPARTEMENTS)
+        out.append('<li class="has-sub"><a href="%s">%s</a>'
+                   '<div class="sub"><strong>%s par département</strong>%s</div></li>'
+                   % (url_landing(act, DEPARTEMENTS[0]), act["nom_court"],
+                      act["nom_court"], liens))
+    return "".join(out)
+
+
+def header(courant=""):
+    def cur(k):
+        return ' aria-current="page"' if courant == k else ""
+    return f"""
+<header class="header">
+  <div class="container header__inner">
+    <a class="marque" href="/" aria-label="Les Plombiers Bretons — accueil">
+      {LOGO_SVG}
+      <span class="marque__txt"><span class="marque__l1">Les Plombiers</span>
+        <span class="marque__l2">Bretons</span></span>
+    </a>
+
+    <nav class="nav" id="nav-principal" aria-label="Navigation principale">
+      <ul style="display:contents">
+        <li><a href="/"{cur('accueil')}>Accueil</a></li>
+        {nav_zones()}
+        <li><a href="/conseils/"{cur('conseils')}>Conseils</a></li>
+        <li><a href="/contact/"{cur('contact')}>Contact</a></li>
+      </ul>
+    </nav>
+
+    <div class="header__cta">
+      <span class="header__dispo"><span class="dot dot--live"></span>
+        <span>Plombier disponible<br><strong>maintenant</strong></span></span>
+      <a class="tel-btn" href="tel:{TEL_LIEN}" data-cta="header">
+        {SVG['tel']}<span class="tel-btn__txt">{TEL}</span>
+      </a>
+      <button class="burger" type="button" aria-label="Ouvrir le menu"
+              aria-expanded="false" aria-controls="nav-principal"><span></span></button>
+    </div>
+  </div>
+</header>"""
+
+
+def ariane(items):
+    lis = ""
+    for i, (label, href) in enumerate(items):
+        if href and i < len(items) - 1:
+            lis += '<li><a href="%s">%s</a></li>' % (href, label)
+        else:
+            lis += '<li aria-current="page">%s</li>' % label
+    return ('\n<nav class="ariane" aria-label="Fil d\'Ariane"><div class="container">'
+            '<ol>%s</ol></div></nav>' % lis)
+
+
+def formulaire(idp, titre, soustitre, bouton, dept=None, act=None, express=False,
+               message=False):
+    """Formulaire de rappel / devis.
+
+    express : version courte — téléphone et commune, rien d'autre. C'est la
+              forme utilisée partout sauf sur la page Contact : quelqu'un dont
+              la canalisation déborde ne remplit pas six champs. Le département
+              et le métier sont déduits de la page et transmis en champs
+              masqués, donc la demande arrive complète sans effort du visiteur.
+    message : ajoute un champ libre (page Contact).
+    """
+    opts_dept = "".join(
+        '<option value="%s (%s)"%s>%s (%s)</option>'
+        % (d["nom"], d["num"], " selected" if dept and d["num"] == dept["num"] else "",
+           d["nom"], d["num"])
+        for d in DEPARTEMENTS)
+    opts_presta = "".join(
+        '<option value="%s"%s>%s</option>'
+        % (clean(a["nom"]), " selected" if act and a["key"] == act["key"] else "",
+           clean(a["nom"]))
+        for a in ACTIVITES)
+
+    ville_ex = dept["prefecture"] if dept else "Votre commune"
+
+    champ_tel = f"""
+        <div class="field">
+          <label for="{idp}-tel">Votre téléphone <span class="req">*</span></label>
+          <input id="{idp}-tel" name="telephone" type="tel" autocomplete="tel"
+                 inputmode="tel" pattern="[0-9 +().-]{{9,}}" placeholder="06 00 00 00 00" required>
+        </div>"""
+
+    champ_ville = f"""
+        <div class="field">
+          <label for="{idp}-ville">Votre commune <span class="req">*</span></label>
+          <input id="{idp}-ville" name="ville" type="text" autocomplete="address-level2"
+                 placeholder="{ville_ex}" required>
+        </div>"""
+
+    if express:
+        # Le contexte part quand même : il est lu sur la page, pas saisi.
+        masques = ""
+        if dept:
+            masques += ('\n      <input type="hidden" name="departement" value="%s (%s)">'
+                        % (dept["nom"], dept["num"]))
+        if act:
+            masques += ('\n      <input type="hidden" name="prestation" value="%s">'
+                        % clean(act["nom"]))
+        corps_champs = f"""
+      <div class="field-row">{champ_tel}{champ_ville}
+      </div>{masques}"""
+    else:
+        bloc_message = f"""
+        <div class="field">
+          <label for="{idp}-msg">Décrivez votre problème <span class="field__opt">(facultatif)</span></label>
+          <textarea id="{idp}-msg" name="message"
+                    placeholder="Ex. : WC bouché depuis ce matin, maison individuelle, accès par le garage."></textarea>
+        </div>""" if message else ""
+        corps_champs = f"""
+      <div class="field-row">
+        <div class="field">
+          <label for="{idp}-nom">Nom <span class="req">*</span></label>
+          <input id="{idp}-nom" name="nom" type="text" autocomplete="name"
+                 placeholder="Votre nom" required>
+        </div>{champ_tel}
+      </div>
+      <div class="field-row">{champ_ville}
+        <div class="field">
+          <label for="{idp}-dept">Département</label>
+          <select id="{idp}-dept" name="departement">{opts_dept}</select>
+        </div>
+      </div>
+        <div class="field">
+          <label for="{idp}-presta">Type d'intervention</label>
+          <select id="{idp}-presta" name="prestation">{opts_presta}
+            <option value="Autre / je ne sais pas">Autre / je ne sais pas</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="{idp}-urgence">Degré d'urgence</label>
+          <select id="{idp}-urgence" name="urgence">
+            <option>Urgence immédiate (intervention aujourd'hui)</option>
+            <option>Sous 48 h</option>
+            <option>Demande de devis, sans urgence</option>
+          </select>
+        </div>{bloc_message}"""
+
+    return f"""
+<div class="form-card">
+  <div class="form-card__head">
+    <span class="form-card__pastille">{picto("horloge", 20)}</span>
+    <div>
+      <h2>{titre}</h2>
+      <p>{soustitre}</p>
+    </div>
+  </div>
+  <div class="form-card__body">
+    <form data-devis data-endpoint="{FORM_ENDPOINT}" id="{idp}" novalidate>
+      <p class="form-msg" aria-live="polite"></p>{corps_champs}
+      <input type="text" name="_gotcha" tabindex="-1" autocomplete="off"
+             aria-hidden="true" style="position:absolute;left:-9999px;opacity:0">
+      <label class="consent">
+        <input type="checkbox" name="consentement" required>
+        <span>J'accepte d'être recontacté par Les Plombiers Bretons au sujet de ma
+          demande. Mes données ne servent qu'à ce rappel
+          (<a href="/politique-de-confidentialite/">politique de confidentialité</a>).</span>
+      </label>
+      <button class="btn btn--primary btn--bloc" type="submit">{bouton} {SVG['fleche']}</button>
+      <ul class="form-atouts">
+        <li>{picto("devis", 16)} Sans engagement</li>
+        <li>{picto("horloge", 16)} Rappel sous 30 min</li>
+        <li>{picto("bouclier", 16)} Données non revendues</li>
+      </ul>
+      <p class="form-note">Plus rapide encore&nbsp;: appelez le
+        <a href="tel:{TEL_LIEN}" data-cta="sous-formulaire">{TEL}</a><br>
+        <span class="form-note__sur">Numéro fixe, non surtaxé — un plombier vous répond.</span></p>
+    </form>
+  </div>
+</div>"""
+
+
+def bandeau_stats():
+    cases = "".join(
+        '<div class="stat"><div class="stat__num">%s</div>'
+        '<div class="stat__lbl">%s</div></div>' % (n, l) for n, l in STATS)
+    return ('\n<section class="stats" aria-label="Les Plombiers Bretons en chiffres">'
+            '<div class="container"><div class="stats__grid">%s</div></div></section>'
+            % cases)
+
+
+def bloc_etapes(titre="Comment ça se passe&nbsp;?", intro=""):
+    steps = "".join(
+        '<li class="step"><span class="step__pastille">%d</span>'
+        '<div><h3>%s</h3><p>%s</p></div></li>'
+        % (i + 1, t, d) for i, (t, d) in enumerate(ETAPES))
+    return f"""
+<section class="section section--fond">
+  <div class="container etapes">
+    <div class="section-head">
+      <span class="eyebrow">Notre méthode</span>
+      <h2>{titre}</h2>
+      <p class="lead">{intro}</p>
+      <a class="lien-fleche" href="tel:{TEL_LIEN}" data-cta="etapes">Commencer par un appel
+        au {TEL} {SVG['fleche']}</a>
+    </div>
+    <ol class="steps">{steps}</ol>
+  </div>
+</section>"""
+
+
+def bloc_reassurance(dept=None):
+    lieu = (" %s %s" % (dept["article"], dept["nom"])) if dept else " en Bretagne"
+    cards = "".join(
+        '<article class="card card--atout"><span class="card__ico">%s</span>'
+        '<div><h3>%s</h3><p>%s</p></div></article>'
+        % (picto(ico, 28), t, d) for t, d, ico in REASSURANCE)
+    return f"""
+<section class="section section--encre">
+  <div class="container">
+    <div class="section-head center">
+      <span class="eyebrow eyebrow--clair">Nos engagements</span>
+      <h2>Pourquoi appeler Les Plombiers Bretons{lieu}&nbsp;?</h2>
+      <p class="lead">Deux métiers seulement — l'eau qui arrive et l'eau qui s'en va —
+        et des engagements écrits sur chaque intervention.</p>
+    </div>
+    <div class="grid grid--2 atouts">{cards}</div>
+  </div>
+</section>"""
+
+
+def cta_final(titre, texte, idp, dept=None, act=None):
+    return f"""
+<section class="cta" id="devis">
+  <div class="container">
+    <div class="cta__grid">
+      <div class="cta__txt">
+        <span class="eyebrow eyebrow--clair">Un plombier au bout du fil</span>
+        <h2>{titre}</h2>
+        <p>{texte}</p>
+        <a class="cta__tel" href="tel:{TEL_LIEN}" data-cta="cta-final">
+          <span class="cta__tel-ico">{SVG['tel']}</span>
+          <span><small>Appel direct, non surtaxé</small>{TEL}</span>
+        </a>
+        <p class="cta__dispo">24h/24 et 7j/7 · Devis gratuit · Prix validé avant intervention</p>
+      </div>
+      {formulaire(idp, "Être rappelé rapidement", "Téléphone et commune&nbsp;: c'est tout.",
+                  "Je veux être rappelé", dept=dept, act=act, express=True)}
+    </div>
+  </div>
+</section>"""
+
+
+def carte(act=None, dept_actuel=None):
+    """Carte cliquable des quatre départements bretons.
+
+    Les contours proviennent des données officielles (france-geojson, ODbL) et
+    sont intégrés en SVG : la carte est interactive sans aucun script ni service
+    tiers, contrairement à une carte Leaflet ou Google Maps qui exposerait les
+    visiteurs à un traçage externe.
+    """
+    # Le barycentre du Finistère tombe sur une presqu'île étroite : on recale
+    # son libellé sur la partie large du département.
+    ancres = dict(CENTRES, **{"29": (283.0, 318.0)})
+    cible = act if act else ACT["plomberie"]
+    zones = ""
+    for d in DEPARTEMENTS:
+        courant = dept_actuel and d["num"] == dept_actuel["num"]
+        cx, cy = ancres[d["num"]]
+        zones += (
+            '<a class="carte__zone%s" href="%s" aria-label="%s %s (%s)"%s>'
+            '<path d="%s"/>'
+            '<text class="carte__num" x="%s" y="%s">%s</text>'
+            '<text class="carte__nom" x="%s" y="%s">%s</text></a>'
+            % (" est-courant" if courant else "",
+               url_landing(cible, d), cible["nom_court"], d["nom"], d["num"],
+               ' aria-current="page"' if courant else "",
+               TRACES[d["num"]], cx, cy, d["num"], cx, cy + 34, d["nom"]))
+
+    legende = "".join(
+        '<li%s><a href="%s"><strong>%s</strong> %s</a></li>'
+        % (' class="est-courant"' if (dept_actuel and d["num"] == dept_actuel["num"]) else "",
+           url_landing(cible, d), d["num"], d["nom"])
+        for d in DEPARTEMENTS)
+
+    return f"""
+<div class="carte">
+  <svg class="carte__svg" viewBox="0 0 {CARTE_LARGEUR} {CARTE_HAUTEUR}"
+       role="img" aria-label="Carte des quatre départements bretons couverts par Les Plombiers Bretons">
+    {zones}
+  </svg>
+  <ul class="carte__legende">{legende}</ul>
+</div>"""
+
+
+VAGUE = ('<svg class="vague" viewBox="0 0 1440 60" preserveAspectRatio="none" '
+         'aria-hidden="true"><path d="M0 30c120 22 240 22 360 0s240-22 360 0 240 22 360 0 '
+         '240-22 360 0v30H0z"/></svg>')
+
+
+def footer():
+    def colonne(act):
+        return "".join('<li><a href="%s">%s %s (%s)</a></li>'
+                       % (url_landing(act, d), act["nom_court"], d["nom"], d["num"])
+                       for d in DEPARTEMENTS)
+
+    return f"""
+<footer class="footer">
+  {VAGUE}
+  <div class="container">
+    <div class="footer__appel">
+      <p class="footer__appel-txt">Une fuite, un bouchon, une urgence&nbsp;?
+        <span>Un plombier vous répond tout de suite.</span></p>
+      <a class="footer__tel" href="tel:{TEL_LIEN}" data-cta="footer">{SVG['tel']} {TEL}</a>
+    </div>
+
+    <div class="footer__grid">
+      <div class="footer__marque">
+        <a class="marque marque--clair" href="/">{LOGO_SVG}
+          <span class="marque__txt"><span class="marque__l1">Les Plombiers</span>
+            <span class="marque__l2">Bretons</span></span></a>
+        <p class="footer__accroche">Plomberie et dégorgement de canalisations, en urgence
+          comme sur rendez-vous, sur les Côtes-d'Armor, le Finistère, l'Ille-et-Vilaine
+          et le Morbihan.</p>
+        <ul class="footer__contacts">
+          <li>{SVG['mail']} <a href="mailto:{EMAIL}">{EMAIL}</a></li>
+          <li>{SVG['pin']} Intervention 24h/24 et 7j/7 en Bretagne</li>
+        </ul>
+      </div>
+
+      <div>
+        <h3>{ACT['plomberie']['nom_court']}</h3>
+        <ul>{colonne(ACT['plomberie'])}</ul>
+      </div>
+
+      <div>
+        <h3>{ACT['degorgement']['nom_court']}</h3>
+        <ul>{colonne(ACT['degorgement'])}</ul>
+      </div>
+
+      <div>
+        <h3>Zones d'intervention</h3>
+        <ul>
+          <li>Côtes-d'Armor (22) — Saint-Brieuc, Lannion, Dinan</li>
+          <li>Finistère (29) — Brest, Quimper, Morlaix</li>
+          <li>Ille-et-Vilaine (35) — Rennes, Saint-Malo, Fougères</li>
+          <li>Morbihan (56) — Vannes, Lorient, Pontivy</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer__bas">
+      <span>© <span data-annee>2026</span> Les Plombiers Bretons — Tous droits réservés.</span>
+      <nav class="footer__legal" aria-label="Liens légaux">
+        <a href="/">Accueil</a>
+        <a href="/conseils/">Conseils d'urgence</a>
+        <a href="/contact/">Contact</a>
+        <a href="/mentions-legales/">Mentions légales</a>
+        <a href="/politique-de-confidentialite/">Confidentialité</a>
+        <a href="/cgu/">CGU</a>
+      </nav>
+    </div>
+  </div>
+</footer>
+
+<div class="barre-fixe" id="barre-fixe" hidden>
+  <span class="barre-fixe__txt"><span class="dot dot--live"></span>
+    Un plombier vous répond maintenant</span>
+  <a class="btn btn--urgence" href="tel:{TEL_LIEN}" data-cta="barre-fixe">
+    {SVG['tel']} {TEL}</a>
+  <a class="btn btn--ghost" href="#devis">Être rappelé</a>
+</div>
+
+<div class="mobile-bar">
+  <a class="mobile-bar__tel" href="tel:{TEL_LIEN}" data-cta="mobile">{SVG['tel']} Appeler</a>
+  <a class="mobile-bar__devis" href="#devis">{SVG['form']} Être rappelé</a>
+</div>
+
+<script src="{JS}" defer></script>
+</body>
+</html>"""
+
+
+# ---------------------------------------------------------------- photos
+# Chaque emplacement pointe vers assets/img/photos/<fichier>.
+# Tant que le fichier n'existe pas, un cadre d'attente s'affiche à sa place
+# (voir assets/js/main.js). Déposez la photo sous ce nom exact : elle apparaît.
+
+SVG_APPAREIL = ('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" '
+                'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" '
+                'width="34" height="34"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4'
+                'a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>')
+
+
+def photo(fichier, alt, legende="", large=False, description=""):
+    """Emplacement photo remplaçable. `large` = format 3/2 au lieu de 4/3."""
+    cap = ""
+    if legende or description:
+        cap = ('<figcaption class="photo__legende">'
+               + ('<strong class="photo__titre">%s</strong>' % legende if legende else "")
+               + ('<span class="photo__texte">%s</span>' % description if description else "")
+               + "</figcaption>")
+    ratio = "3 / 2" if large else "4 / 3"
+    # Fichier absent au moment du build : le cadre d'attente est affiché
+    # d'emblée, sans attendre l'échec du chargement. Si la photo est déposée
+    # ensuite sans relancer le build, main.js retire le cadre dès qu'elle charge.
+    vide = "" if os.path.exists(os.path.join(ROOT, "assets/img/photos", fichier)) else " photo--vide"
+    return f"""
+<figure class="photo{vide}">
+  <div class="photo__cadre" style="aspect-ratio:{ratio}">
+    <img class="photo__img" src="/assets/img/photos/{fichier}" alt="{alt}"
+         loading="lazy" decoding="async">
+    <div class="photo__attente">
+      {SVG_APPAREIL}
+      <span class="photo__aide">Photo en attente</span>
+      <code class="photo__nom">photos/{fichier}</code>
+    </div>
+  </div>
+  {cap}
+</figure>"""
+
+
+def galerie(photos, eyebrow, titre, intro, colonnes=None):
+    """Galerie photo. Sans `colonnes`, la grille s'adapte : 3 colonnes si le
+    nombre de photos est un multiple de 3, 2 sinon — jamais de ligne bancale."""
+    if colonnes is None:
+        colonnes = 3 if len(photos) % 3 == 0 else 2
+    items = "".join(photo(f, a, l, description=t) for f, a, l, t in photos)
+    return f"""
+<section class="section section--pale">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">{eyebrow}</span>
+      <h2>{titre}</h2>
+      <p class="lead">{intro}</p>
+    </div>
+    <div class="grid grid--{colonnes} galerie">{items}</div>
+  </div>
+</section>"""
+
+
+# ------------------------------------------------------------------- JSON-LD
+def ld_business(act=None, dept=None):
+    zones = [{"@type": "AdministrativeArea", "name": "%s (%s)" % (d["nom"], d["num"])}
+             for d in DEPARTEMENTS]
+    if dept:
+        zones = [{"@type": "AdministrativeArea", "name": "%s (%s)" % (dept["nom"], dept["num"])}]
+    nom = SITE["nom"]
+    if act and dept:
+        nom = "%s — %s %s" % (SITE["nom"], clean(act["nom_court"]), dept["nom"])
+    data = {
+        "@context": "https://schema.org",
+        "@type": ["LocalBusiness", "Plumber"],
+        "name": nom,
+        "description": clean(act["accroche"]) if act else
+                       "Plomberie et dégorgement de canalisations en Bretagne.",
+        "telephone": TEL_LIEN,
+        "email": EMAIL,
+        "url": BASE + (url_landing(act, dept) if (act and dept) else "/"),
+        "image": BASE + "/assets/img/logo.jpg",
+        "priceRange": "€€",
+        "address": {"@type": "PostalAddress", "addressRegion": "Bretagne",
+                    "addressCountry": "FR"},
+        "areaServed": zones,
+        "openingHoursSpecification": [{
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday",
+                          "Friday", "Saturday", "Sunday"],
+            "opens": "00:00", "closes": "23:59"}],
+    }
+    if act:
+        data["makesOffer"] = [
+            {"@type": "Offer", "itemOffered": {"@type": "Service", "name": clean(t),
+                                               "description": clean(d)}}
+            for t, d in act["prestations"]]
+    return data
+
+
+def ld_faq(act, dept):
+    return {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {"@type": "Question", "name": clean(fmt(q, act, dept)),
+             "acceptedAnswer": {"@type": "Answer", "text": clean(fmt(r, act, dept))}}
+            for q, r in act["faq"]],
+    }
+
+
+def url_article(art):
+    return "/conseils/%s/" % art["slug"]
+
+
+def articles_du_dept(num):
+    return [a for a in ARTICLES if a["dept"] == num]
+
+
+PAR_PAGE = 12          # 12 vignettes, soit quatre lignes de trois
+
+
+def url_conseils(page=1, dept=None):
+    """URL d'une page de la rubrique conseils.
+
+    /conseils/            page 1, tous départements
+    /conseils/page-2/     page 2, tous départements
+    /conseils/finistere-29/          page 1 du Finistère
+    /conseils/finistere-29/page-2/   page 2 du Finistère
+    """
+    base = "/conseils/" if dept is None else "/conseils/%s-%s/" % (dept["slug"], dept["num"])
+    return base if page == 1 else base + "page-%d/" % page
+
+
+def articles_tries(dept=None):
+    """Ordre de lecture : département, puis métier, puis titre.
+
+    La liste complète reste ainsi groupée par département même une fois
+    découpée en pages, et les vignettes d'un même métier se suivent.
+    """
+    ordre_dept = {d["num"]: i for i, d in enumerate(DEPARTEMENTS)}
+    ordre_act = {a["key"]: i for i, a in enumerate(ACTIVITES)}
+    liste = ARTICLES if dept is None else articles_du_dept(dept["num"])
+    return sorted(liste, key=lambda a: (ordre_dept[a["dept"]],
+                                        ordre_act[a["act"]], a["court"]))
+
+
+def nb_pages(dept=None):
+    total = len(articles_tries(dept))
+    return max(1, -(-total // PAR_PAGE))
+
+
+def ld_ariane(items):
+    return {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": i + 1, "name": clean(label),
+             "item": BASE + (href or "/")}
+            for i, (label, href) in enumerate(items)],
+    }
+
+
+import re as _re
+
+# « & » isolé -> « &amp; » (HTML valide), sans toucher aux entités existantes.
+_AMP = _re.compile(r"&(?!(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)")
+_SCRIPT = _re.compile(r"(<script\b.*?</script>)", _re.S)
+
+
+def echapper_amp(html):
+    """Échappe les & en dehors des blocs <script> (contenu brut, non parsé)."""
+    return "".join(
+        part if part.lower().startswith("<script") else _AMP.sub("&amp;", part)
+        for part in _SCRIPT.split(html))
+
+
+# Un gabarit non évalué ressemble à {picto("check", 13)} : il survient quand une
+# accolade se glisse dans une chaîne assemblée par %, où elle n'est pas
+# interprétée. Le texte apparaît alors tel quel sur la page.
+_GABARIT = _re.compile(r"\{[A-Za-z_][^{}\n]{0,80}\}")
+_JSONLD = _re.compile(r'<script type="application/ld\+json">.*?</script>', _re.S)
+
+
+def verifier_gabarits(nom, html):
+    reste = _GABARIT.findall(_JSONLD.sub("", html))
+    if reste:
+        raise SystemExit(
+            "%s : gabarit non évalué -> %s\n"
+            "Une accolade figure dans une chaîne formatée avec %%, où elle n'est "
+            "pas interprétée. Appelez la fonction en Python plutôt que de "
+            "l'écrire entre accolades." % (nom, ", ".join(sorted(set(reste))[:5])))
+
+
+def ecrire(nom, contenu):
+    if nom.endswith(".html"):
+        contenu = echapper_amp(contenu)
+        verifier_gabarits(nom, contenu)
+    chemin = os.path.join(ROOT, nom)
+    os.makedirs(os.path.dirname(chemin), exist_ok=True)
+    with open(chemin, "w", encoding="utf-8") as f:
+        f.write(contenu.strip() + "\n")
+    print("  ✓ %-46s %6d o" % (nom, len(contenu)))
+
+
+# ============================================================ LANDING PAGES
+def carte_avis(txt, nom, note, ville, num, metier=""):
+    suffixe = (" — %s" % metier) if metier else ""
+    return ('<article class="avis"><div class="avis__stars" aria-label="%d étoiles sur 5">'
+            '%s</div><p class="avis__txt">%s</p><div class="avis__auteur">'
+            '<span class="avis__ini" aria-hidden="true">%s</span><span>'
+            '<span class="avis__nom">%s</span><span class="avis__ville">%s (%s)%s</span>'
+            '</span></div></article>'
+            % (note, picto("etoile", 16) * note, txt, nom[0], nom, ville, num, suffixe))
+
+
+def page_landing(act, dept):
+    url = url_landing(act, dept)
+    d_nom, d_num = dept["nom"], dept["num"]
+    conseils_dept = "".join(carte_article(a) for a in
+                            [a for a in articles_du_dept(d_num) if a["act"] == act["key"]][:3])
+    art = dept["article"]
+    du = DE[d_num]
+    activite = clean(act["nom_court"]).lower()
+    autre = [a for a in ACTIVITES if a["key"] != act["key"]][0]
+
+    h1 = "%s %s %s (%s)" % (act["h1"], art, d_nom, d_num)
+    titre = "%s %s (%s) — Urgence 24/7 | Les Plombiers Bretons" % (act["nom_court"], d_nom, d_num)
+    desc = clean("%s %s %s (%s) : intervention d'urgence 7j/7, devis gratuit, artisans "
+                 "qualifiés et garantie décennale. Appelez le %s."
+                 % (act["metier"], art, d_nom, d_num, TEL))[:300]
+    mots = clean("%s %s, %s %s, %s %s, dépannage urgence %s"
+                 % (act["nom_court"], d_nom, act["pro"], d_nom, act["nom_court"], d_num,
+                    dept["prefecture"])) + ", " + clean(act["mots_cles"])
+
+    fil = [("Accueil", "/"),
+           ("%s %s" % (act["nom_court"], d_nom), url)]
+
+    # --- Prestations -------------------------------------------------------
+    prestas = "".join(
+        '<article class="presta"><span class="presta__ico">%s</span>'
+        '<h3>%s</h3><p>%s</p></article>' % (ICONES[act["key"]], t, d)
+        for t, d in act["prestations"])
+
+    # --- Urgences ----------------------------------------------------------
+    urgences = "".join('<li><span class="tick tick--alerte">%s</span><span>%s</span></li>'
+                       % (picto("alerte", 15), u)
+                       for u in act["urgences"])
+
+    # --- Tarifs ------------------------------------------------------------
+    lignes = "".join('<tr><td>%s</td><td>%s</td></tr>' % (t, p) for t, p in act["tarifs"])
+
+    # --- Avis --------------------------------------------------------------
+    villes_avis = [dept["villes"][0], dept["villes"][1], dept["villes"][3]]
+    avis = "".join(carte_avis(txt, nom, note, ville, d_num)
+                   for (txt, nom, note), ville in zip(act["avis"], villes_avis))
+
+    # --- Villes ------------------------------------------------------------
+    villes = "".join('<li>%s</li>' % v for v in dept["villes"])
+
+    # --- FAQ ---------------------------------------------------------------
+    faq = "".join(
+        '<details%s><summary>%s</summary><div class="faq__body">%s</div></details>'
+        % (" open" if i == 0 else "", fmt(q, act, dept), fmt(r, act, dept))
+        for i, (q, r) in enumerate(act["faq"]))
+
+    # --- Contenu SEO -------------------------------------------------------
+    prose = "".join("<p>%s</p>" % fmt(p, act, dept) for p in act["prose"])
+    for h3, items in act["prose_h3"]:
+        prose += "<h3>%s</h3><ul>%s</ul>" % (
+            fmt(h3, act, dept), "".join("<li>%s</li>" % i for i in items))
+
+    # --- Maillage interne --------------------------------------------------
+    autres_dept = "".join(
+        '<a href="%s">%s %s (%s)</a>' % (url_landing(act, d), act["nom_court"], d["nom"], d["num"])
+        for d in DEPARTEMENTS if d["num"] != d_num)
+
+    hero_points = "".join('<li><span class="tick">%s</span><span>%s</span></li>'
+                          % (picto("check", 15), p)
+                          for p in act["hero_points"])
+
+    equipe = ""
+    if act["photo_equipe"]:
+        equipe = photo(act["photo_equipe"][0], act["photo_equipe"][1], large=True)
+
+    return (
+        head(titre, desc, url,
+             [ld_business(act, dept), ld_faq(act, dept), ld_ariane(fil)], mots)
+        + header() + ariane(fil) + f"""
+
+<main id="contenu">
+
+<!-- ============================ HERO ============================ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero__grid">
+      <div class="hero__haut">
+        <span class="hero__badge"><span class="dot dot--live"></span> {act['nom_court']} · {d_nom} ({d_num}) · 24h/24</span>
+        <h1>{h1}</h1>
+        <p class="hero__sub">{act['accroche']} Des {act['pro_pluriel']} qualifiés {art}
+          {d_nom}, un prix annoncé avant de commencer.</p>
+        <ul class="hero__points">{hero_points}</ul>
+        <div class="hero__actions">
+          <a class="btn btn--urgence btn--xl" href="tel:{TEL_LIEN}" data-cta="hero">
+            {SVG['tel']} {TEL}
+          </a>
+          <a class="btn btn--outline-blanc btn--xl" href="#tarifs">Voir les tarifs</a>
+        </div>
+      </div>
+      <div class="hero__form">{formulaire("hero-" + act["key"] + "-" + d_num,
+                  "Être rappelé en 30 minutes",
+                  "Deux informations suffisent&nbsp;: un %s %s vous rappelle." % (act["pro"], du),
+                  "Je veux être rappelé", dept=dept, act=act, express=True)}</div>
+    </div>
+    <p class="hero__villes">{SVG['pin']} <span><strong>Nous intervenons&nbsp;:</strong>
+      {", ".join(dept["villes"][:8])} et toutes les communes {du}.</span></p>
+  </div>
+</section>
+{bandeau_stats()}
+
+<!-- ======================== PRESTATIONS ========================= -->
+<section class="section">
+  <div class="container">
+    <div class="section-head section-head--split">
+      <div>
+        <span class="eyebrow">Nos prestations {art} {d_nom}</span>
+        <h2>{act['metier']} {art} {d_nom}&nbsp;: tout ce que nous traitons</h2>
+      </div>
+      <p class="lead">Du dépannage d'urgence au chantier planifié, nos {act['pro_pluriel']}
+        interviennent sur l'ensemble {du}, particuliers comme professionnels.</p>
+    </div>
+    <div class="grid grid--4 prestas">{prestas}</div>
+  </div>
+</section>
+
+<!-- ===================== TARIFS + URGENCES ====================== -->
+<section class="section section--pale" id="tarifs">
+  <div class="container duo">
+    <div>
+      <span class="eyebrow">Transparence des tarifs</span>
+      <h2>Nos tarifs indicatifs {art} {d_nom}</h2>
+      <p class="lead">Aucun prix caché. Ces montants sont des points de départ&nbsp;: le tarif
+        exact est fixé après diagnostic et validé par vous avant toute intervention.</p>
+      <div class="table-scroll">
+      <table class="tarifs">
+        <caption>Tarifs TTC indicatifs {TODAY[:4]}, hors pièces spécifiques et hors majorations
+          éventuelles. Le devis gratuit fait foi.</caption>
+        <thead><tr><th scope="col">Intervention</th><th scope="col">Tarif indicatif</th></tr></thead>
+        <tbody>{lignes}</tbody>
+      </table>
+      </div>
+    </div>
+    <aside class="urgence-box">
+      <span class="eyebrow eyebrow--clair">Situations d'urgence</span>
+      <h2>Une urgence {activite} {art} {d_nom}&nbsp;?</h2>
+      <p>Ces situations ne peuvent pas attendre. Appelez-nous&nbsp;: un plombier vous
+        répond, qualifie le problème et se met en route.</p>
+      <ul class="checks">{urgences}</ul>
+      <a class="btn btn--urgence btn--xl btn--bloc" href="tel:{TEL_LIEN}" data-cta="urgence">
+        {SVG['tel']} Urgence&nbsp;: {TEL}
+      </a>
+      <h3>Ce que vous savez avant notre arrivée</h3>
+      <ul class="checks checks--clair">
+        <li><span class="tick">{picto("check", 15)}</span><span>Le créneau d'intervention et le nom du plombier</span></li>
+        <li><span class="tick">{picto("check", 15)}</span><span>Le coût du déplacement et du diagnostic</span></li>
+        <li><span class="tick">{picto("check", 15)}</span><span>Une fourchette de prix pour la réparation</span></li>
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<!-- ============================ AVIS ============================ -->
+<section class="section">
+  <div class="container">
+    <div class="section-head section-head--split">
+      <div>
+        <span class="eyebrow">Avis clients</span>
+        <h2>Ils nous ont appelés {art} {d_nom}</h2>
+      </div>
+      <p class="lead">La proximité se mesure sur le terrain. Voici ce que disent nos clients
+        {du} après une intervention.</p>
+    </div>
+    <div class="grid grid--3">{avis}</div>
+  </div>
+</section>
+
+{galerie(act["photos"],
+         "En images",
+         "Nos interventions %s %s en images" % (activite, d_nom),
+         "Quelques chantiers réalisés par nos équipes. Photos de nos propres "
+         "interventions — pas de banque d'images.")}
+
+<!-- =========================== VILLES =========================== -->
+<section class="section">
+  <div class="container">
+    <div class="zone-grid">
+      <div>
+        <span class="eyebrow">Proximité</span>
+        <h2>{act['nom_court']} {art} {d_nom}&nbsp;: les communes desservies</h2>
+        <p class="lead">Nous couvrons l'ensemble du département {d_num}, des grandes villes
+          aux communes rurales. Votre commune n'est pas listée&nbsp;? Appelez-nous, nous
+          intervenons très probablement chez vous.</p>
+        <ul class="villes-grid">{villes}</ul>
+        <div class="encadre">
+          <h3>{picto("zone", 20)} Zone d'intervention {du}</h3>
+          <p>Nos équipes circulent quotidiennement sur {dept['axes']}. Cela nous permet
+            d'annoncer un délai réaliste dès votre appel — et de le tenir.</p>
+        </div>
+      </div>
+      <div>
+        {carte(act, dept)}
+        {equipe}
+      </div>
+    </div>
+  </div>
+</section>
+
+{bloc_reassurance(dept)}
+
+{bloc_etapes("De votre appel à la remise en service",
+             "Quatre étapes, sans zone d'ombre&nbsp;: vous gardez la main à chaque instant.")}
+
+<!-- ============================ FAQ ============================= -->
+<section class="section">
+  <div class="container faq-bloc">
+    <div class="section-head">
+      <span class="eyebrow">Questions fréquentes</span>
+      <h2>{act['nom_court']} {art} {d_nom}&nbsp;: vos questions</h2>
+      <p class="lead">Vous ne trouvez pas votre réponse&nbsp;? Un plombier vous la donne
+        au téléphone, gratuitement.</p>
+      <a class="lien-fleche" href="tel:{TEL_LIEN}" data-cta="faq">{TEL} {SVG['fleche']}</a>
+    </div>
+    <div class="faq">{faq}</div>
+  </div>
+</section>
+
+<!-- ========================= CONTENU SEO ======================== -->
+<section class="section section--fond">
+  <div class="container">
+    <div class="prose">
+      <h2>{fmt(act['prose_titre'], act, dept)}</h2>
+      {prose}
+    </div>
+  </div>
+</section>
+
+{cta_final("Une urgence %s %s&nbsp;? Un plombier peut être chez vous dans l'heure."
+           % (art, d_nom),
+           "Appelez Les Plombiers Bretons maintenant&nbsp;: un professionnel qualifié vous "
+           "répond, annonce un délai clair et se déplace avec le matériel adapté. "
+           "Devis gratuit, tarif validé avant intervention, garantie décennale.",
+           "cta-" + act["key"] + "-" + d_num, dept=dept, act=act)}
+
+<!-- ========================= MAILLAGE =========================== -->
+<section class="section">
+  <div class="container">
+    <div class="maillage">
+      <a class="maillage__autre" href="{url_landing(autre, dept)}">
+        <span class="maillage__ico">{ICONES[autre['key']]}</span>
+        <span><small>Notre autre métier {art} {d_nom}</small>
+          <strong>{autre['nom']}</strong></span>
+        {SVG['fleche']}
+      </a>
+      <div class="maillage__depts">
+        <h3>{act['nom_court']} dans les autres départements bretons</h3>
+        <div class="liens-grid">{autres_dept}</div>
+      </div>
+    </div>
+    <div class="section-head" style="margin:56px 0 22px">
+      <h3 class="titre-moyen">Conseils d'urgence {activite} {art} {d_nom}</h3>
+      <p class="lead" style="margin:0">Ce qu'il faut faire dans les premières minutes,
+        situation par situation. <a href="{url_conseils(dept=dept)}"><strong>Voir les
+        {len(articles_du_dept(d_num))} conseils {art} {d_nom}</strong></a></p>
+    </div>
+    <div class="art-grille">{conseils_dept}</div>
+  </div>
+</section>
+
+</main>
+""" + footer())
+
+
+# ============================================================ ARTICLES
+MOIS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+        "août", "septembre", "octobre", "novembre", "décembre")
+
+
+def date_fr(iso):
+    a, m, j = iso.split("-")
+    jour = "1er" if j == "01" else str(int(j))
+    return "%s %s %s" % (jour, MOIS[int(m) - 1], a)
+
+
+_ACCENTS = str.maketrans("àâäçéèêëîïôöùûüÿñ", "aaaceeeeiioouuuyn")
+
+
+def ancre(titre):
+    """Identifiant d'ancre stable à partir d'un intertitre."""
+    t = clean(titre).lower().translate(_ACCENTS)
+    t = _re.sub(r"[^a-z0-9]+", "-", t).strip("-")
+    return t[:60].rstrip("-")
+
+
+def illustration(art):
+    """Photo d'illustration : une par article, prise dans la banque du métier et
+    tournée pour que deux articles voisins n'affichent pas la même image.
+
+    Renvoie (fichier, alt, titre, description) comme dans les données.
+    """
+    photos = ACT[art["act"]]["photos"]
+    meme_metier = [a["slug"] for a in ARTICLES if a["act"] == art["act"]]
+    return photos[meme_metier.index(art["slug"]) % len(photos)]
+
+
+def mots_article(art):
+    n = len(art["chapo"].split()) + len(art["danger"].split())
+    n += sum(len(x.split()) for x in art["urgent"])
+    for h2, paras, puces in art["sections"]:
+        n += len(h2.split()) + sum(len(x.split()) for x in paras)
+        n += sum(len(x.split()) for x in (puces or []))
+    n += sum(len(q.split()) + len(r.split()) for q, r in art["faq"])
+    return n
+
+
+def bloc_urgent(art):
+    """L'encadré « À faire tout de suite » : c'est lui que le visiteur lit."""
+    etapes = "".join(
+        '<li><span class="urgence__num">%d</span><span>%s</span></li>' % (i, t)
+        for i, t in enumerate(art["urgent"], 1))
+    danger = ""
+    if art.get("danger"):
+        danger = ('\n<div class="danger">%s<p><strong>À ne pas faire&nbsp;:</strong> %s</p></div>'
+                  % (picto("alerte", 26), art["danger"]))
+    return ('\n<div class="urgence" id="a-faire-tout-de-suite">'
+            '<span class="urgence__sur">Marche à suivre</span>'
+            '<h2 class="urgence__titre">À faire tout de suite</h2>'
+            '<ol class="urgence__liste">%s</ol>'
+            '<a class="btn btn--urgence btn--xl btn--bloc urgence__appel" href="tel:%s" '
+            'data-cta="article-urgence">%s Appeler le %s</a>'
+            '</div>%s' % (etapes, TEL_LIEN, SVG["tel"], TEL, danger))
+
+
+def corps_article(art):
+    out = ""
+    for h2, paras, puces in art["sections"]:
+        out += '\n      <h2 id="%s">%s</h2>\n' % (ancre(h2), h2)
+        out += "".join("      <p>%s</p>\n" % t for t in paras)
+        if puces:
+            out += ('      <ul class="checks">%s</ul>\n'
+                    % "".join('<li><span class="tick">%s</span><span>%s</span></li>'
+                              % (picto("check", 13), x) for x in puces))
+    return out
+
+
+def bloc_faq(art):
+    items = "".join(
+        "<details><summary>%s</summary><div class=\"faq__body\"><p>%s</p></div></details>"
+        % (q, r) for q, r in art["faq"])
+    return items
+
+
+def ld_article(art, dept):
+    act = ACT[art["act"]]
+    return {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": clean(art["h1"])[:110],
+        "alternativeHeadline": clean(art["court"]),
+        "description": clean(art["meta"]),
+        "inLanguage": "fr-FR",
+        "isAccessibleForFree": True,
+        "datePublished": art["date"],
+        "dateModified": TODAY,
+        "wordCount": mots_article(art),
+        "articleSection": clean(act["nom"]),
+        "keywords": clean(art["mots_cles"]),
+        "author": {"@type": "Organization", "name": SITE["nom"], "url": BASE + "/"},
+        "publisher": {"@type": "Organization", "name": SITE["nom"],
+                      "logo": {"@type": "ImageObject",
+                               "url": BASE + "/assets/img/logo.jpg"}},
+        "mainEntityOfPage": {"@type": "WebPage", "@id": BASE + url_article(art)},
+        "about": {"@type": "Service", "name": clean(act["nom"]),
+                  "serviceType": clean(act["metier"]),
+                  "areaServed": {"@type": "AdministrativeArea",
+                                 "name": "%s (%s)" % (dept["nom"], dept["num"])},
+                  "provider": {"@type": "LocalBusiness", "name": SITE["nom"]}},
+        "contentLocation": {"@type": "AdministrativeArea",
+                            "name": "%s (%s)" % (dept["nom"], dept["num"])},
+        "image": BASE + "/assets/img/photos/" + illustration(art)[0],
+    }
+
+
+def ld_entreprise(art, dept):
+    """Fiche d'entreprise portée par chaque article.
+
+    L'article est la page d'entrée depuis une recherche d'urgence : il doit
+    donc porter lui-même le nom, le téléphone et la zone desservie, et pas
+    seulement renvoyer vers la page métier.
+    """
+    act = ACT[art["act"]]
+    return {
+        "@context": "https://schema.org",
+        "@type": ["LocalBusiness",
+                  "Plumber"],
+        "@id": BASE + "/#entreprise",
+        "name": SITE["nom"],
+        "description": "%s %s %s, intervention d'urgence 24h/24 et 7j/7."
+                       % (clean(act["metier"]), dept["article"], dept["nom"]),
+        "url": BASE + url_landing(act, dept),
+        "telephone": "+33" + SITE["tel"].replace(" ", "")[1:],
+        "email": EMAIL,
+        "priceRange": "€€",
+        "address": {"@type": "PostalAddress", "addressRegion": "Bretagne",
+                    "addressCountry": "FR"},
+        # Les communes réellement traitées dans l'article passent dans
+        # areaServed : c'est ce qui relie la page à une recherche locale.
+        "areaServed": [{"@type": "AdministrativeArea",
+                        "name": "%s (%s)" % (dept["nom"], dept["num"])}]
+                      + [{"@type": "City", "name": v}
+                         for v in ([x for x, _ in art["villes"]]
+                                   if art.get("villes") else dept["villes"][:6])],
+        "openingHoursSpecification": {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday",
+                          "Friday", "Saturday", "Sunday"],
+            "opens": "00:00", "closes": "23:59"},
+    }
+
+
+def ld_faq_article(art):
+    return {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [{"@type": "Question", "name": clean(q),
+                        "acceptedAnswer": {"@type": "Answer", "text": clean(r)}}
+                       for q, r in art["faq"]],
+    }
+
+
+def sommaire(art):
+    """Sommaire ancré : il donne la structure d'un coup d'œil et c'est aussi
+    ce que Google utilise pour proposer des liens de saut dans ses résultats."""
+    items = '<li><a href="#a-faire-tout-de-suite">À faire tout de suite</a></li>'
+    items += "".join('<li><a href="#%s">%s</a></li>' % (ancre(h2), h2)
+                     for h2, _, _ in art["sections"])
+    if art.get("villes"):
+        items += '<li><a href="#villes">%s</a></li>' % art["villes_titre"]
+    items += '<li><a href="#questions">Questions fréquentes</a></li>'
+    return ('<nav class="sommaire" aria-label="Sommaire de l\'article">'
+            '<span class="sommaire__titre">Sur cette page</span>'
+            '<ol>%s</ol></nav>' % items)
+
+
+def ligne_meta(art, dept, act):
+    lecture = max(1, round(mots_article(art) / 200))
+    return ('<div class="article-meta">'
+            '<span class="article-meta__item">%s Mis à jour le <strong>%s</strong></span>'
+            '<span class="article-meta__item">%s Lecture <strong>%d min</strong></span>'
+            '<span class="article-meta__item">%s <strong>%s</strong> · %s %s %s</span>'
+            '</div>'
+            % (picto("horloge", 17), date_fr(TODAY),
+               picto("devis", 17), lecture,
+               picto("carte", 17), SITE["nom"],
+               clean(act["nom_court"]), dept["article"], dept["nom"]))
+
+
+# Trois tournures alternées : un lien contextuel identique sur quarante pages
+# se verrait, et il ne servirait ni le lecteur ni le référencement.
+_RENVOIS = (
+    "Au-delà de cette situation, notre page %s détaille nos interventions, nos "
+    "tarifs indicatifs et nos délais annoncés.",
+    "Pour le détail de ce que nous traitons, de nos tarifs indicatifs et de nos "
+    "délais, voyez notre page %s.",
+    "Nos prestations complètes, nos tarifs indicatifs et nos délais figurent sur "
+    "notre page %s.",
+)
+
+
+def lien_contextuel(art, dept, act):
+    i = [a["slug"] for a in ARTICLES].index(art["slug"]) % len(_RENVOIS)
+    ancre_txt = "%s %s %s" % (clean(act["nom_court"]).lower(),
+                              dept["article"], dept["nom"])
+    lien = '<a href="%s">%s</a>' % (url_landing(act, dept), ancre_txt)
+    return "      <p>%s</p>\n" % (_RENVOIS[i] % lien)
+
+
+def bloc_villes(art, dept, act):
+    """Tableau des communes couvertes, avec ce qui change d'une ville à l'autre.
+
+    C'est le cœur des articles de zone : un visiteur cherche « plombier urgence
+    Lannion », pas « plombier Côtes-d'Armor ». La page doit donc nommer sa
+    commune et dire quelque chose de vrai sur elle.
+    """
+    if not art.get("villes"):
+        return ""
+    lignes = "".join(
+        '<li><span class="villes-urg__nom">%s</span>'
+        '<span class="villes-urg__note">%s</span></li>' % (v, note)
+        for v, note in art["villes"])
+    citees = [v for v, _ in art["villes"]]
+    autres = [v for v in dept["villes"] if v not in citees][:8]
+    return f"""
+<div class="villes-urg" id="villes">
+  <h2>{art['villes_titre']}</h2>
+  <p>{art['villes_intro']}</p>
+  <ul class="villes-urg__liste">{lignes}</ul>
+  <p class="villes-urg__pied">Nous intervenons aussi à {", ".join(autres)} et sur
+    l'ensemble des communes {DE[dept['num']]}. Le délai est toujours annoncé au
+    téléphone avant tout déplacement&nbsp;: nous préférons un créneau tenu à une
+    promesse large. <a href="tel:{TEL_LIEN}" data-cta="article-villes">Appelez le
+    {TEL}</a> pour connaître le nôtre sur votre commune.</p>
+</div>"""
+
+
+def zone_locale(art, dept, act):
+    """Bloc de proximité : communes desservies et liens vers les pages métier
+    du département. C'est le signal local le plus direct de la page."""
+    villes = dept["villes"]
+    liens = "".join(
+        '<a href="%s">%s %s (%s)</a>'
+        % (url_landing(a, dept), a["nom_court"], dept["nom"], dept["num"])
+        for a in ACTIVITES)
+    return f"""
+<div class="zone-locale">
+  <h2 id="intervention">{clean(act['nom_court'])} d'urgence {dept['article']} {dept['nom']} ({dept['num']})</h2>
+  <p>Nos {act['pro_pluriel']} interviennent 24h/24 et 7j/7 sur l'ensemble du
+    département, de {villes[0]} à {villes[1]} en passant par {villes[2]},
+    {villes[3]} et {villes[4]}. Le délai est annoncé au téléphone avant tout
+    déplacement, et le devis est validé avec vous avant le démarrage.</p>
+  <p><strong>Communes desservies&nbsp;:</strong> {", ".join(villes[:10])} et toutes
+    les communes {DE[dept['num']]}.</p>
+  <div class="zone-locale__liens">{liens}</div>
+</div>"""
+
+
+def carte_article(art):
+    """Vignette utilisée sur l'index et dans les articles liés."""
+    d = DEPT[art["dept"]]
+    return ('<a class="art-carte" href="%s">'
+            '<span class="art-carte__dept">%s %s (%s)</span>'
+            '<span class="art-carte__titre">%s</span>'
+            '<span class="art-carte__txt">%s</span>'
+            '<span class="art-carte__lire">Lire la suite</span></a>'
+            % (url_article(art), picto("carte", 14), d["nom"], d["num"],
+               art["h1"], art["chapo"][:150].rsplit(" ", 1)[0] + "…"))
+
+
+def filtres_conseils(dept_courant=None):
+    """Barre de sous-catégories : tous les départements, puis les quatre."""
+    def lien(label, href, actif, nb):
+        return ('<a class="filtre%s" href="%s"%s>%s'
+                '<span class="filtre__nb">%d</span></a>'
+                % (" est-actif" if actif else "", href,
+                   ' aria-current="page"' if actif else "", label, nb))
+    out = lien("Tous les départements", url_conseils(), dept_courant is None, len(ARTICLES))
+    for d in DEPARTEMENTS:
+        out += lien("%s (%s)" % (d["nom"], d["num"]), url_conseils(dept=d),
+                    dept_courant is not None and d["num"] == dept_courant["num"],
+                    len(articles_du_dept(d["num"])))
+    return ('<nav class="filtres" aria-label="Filtrer par département">%s</nav>' % out)
+
+
+def pagination(page, total_pages, dept=None):
+    """Numéros de page. Rien n'est affiché s'il n'y a qu'une page."""
+    if total_pages <= 1:
+        return ""
+    liens = ""
+    if page > 1:
+        liens += ('<a class="page-lien page-lien--prec" href="%s" rel="prev">'
+                  '<span aria-hidden="true">&#8592;</span> Précédent</a>'
+                  % url_conseils(page - 1, dept))
+    for n in range(1, total_pages + 1):
+        # Le libellé complet passe par aria-label plutôt que par un texte masqué :
+        # un intitulé accessible n'a pas besoin d'exister dans le flux visuel.
+        if n == page:
+            liens += ('<span class="page-num est-actif" aria-current="page" '
+                      'aria-label="Page %d, page courante">%d</span>' % (n, n))
+        else:
+            liens += ('<a class="page-num" href="%s" aria-label="Page %d">%d</a>'
+                      % (url_conseils(n, dept), n, n))
+    if page < total_pages:
+        liens += ('<a class="page-lien page-lien--suiv" href="%s" rel="next">'
+                  'Suivant <span aria-hidden="true">&#8594;</span></a>'
+                  % url_conseils(page + 1, dept))
+    return ('<nav class="pagination" aria-label="Pages de la rubrique conseils">'
+            '%s</nav>' % liens)
+
+
+def grille_conseils(articles, avec_titres):
+    """Vignettes du lot courant.
+
+    Sur la liste tous départements, un intertitre réapparaît à chaque
+    changement de département : la page reste lisible même coupée en tranches.
+    """
+    if not avec_titres:
+        return '<div class="art-grille">%s</div>' % "".join(
+            carte_article(a) for a in articles)
+    out, dept_precedent = "", None
+    for a in articles:
+        if a["dept"] != dept_precedent:
+            if dept_precedent is not None:
+                out += "</div></div>"
+            d = DEPT[a["dept"]]
+            out += ('<div class="conseils-dept"><h2>%s (%s)</h2>'
+                    '<div class="art-grille">' % (d["nom"], d["num"]))
+            dept_precedent = a["dept"]
+        out += carte_article(a)
+    return out + "</div></div>" if out else ""
+
+
+def page_article(art):
+    dept, act = DEPT[art["dept"]], ACT[art["act"]]
+    url = url_article(art)
+    d_nom, d_num = dept["nom"], dept["num"]
+    du = DE[d_num]
+    fil = [("Accueil", "/"), ("Conseils d'urgence", "/conseils/"),
+           ("%s (%s)" % (d_nom, d_num), url_conseils(dept=dept)),
+           (art["court"], url)]
+
+    cta_titre = ("Une urgence %s %s %s&nbsp;?"
+                 % (act["nom_court"].lower(), dept["article"], d_nom))
+
+    autres = [a for a in ARTICLES if a["slug"] != art["slug"]
+              and (a["dept"] == art["dept"] or a["act"] == art["act"])][:3]
+    lies = "".join(carte_article(a) for a in autres)
+
+    fichier, alt, _legende, description = illustration(art)
+    visuel = photo(fichier, alt,
+                   "%s %s %s" % (clean(act["nom_court"]), dept["article"], d_nom),
+                   large=True, description=description)
+
+    # Les dates d'un article pèsent dans son référencement : elles sont dans le
+    # balisage, dans les métadonnées Open Graph et visibles à l'écran.
+    meta_sup = ('\n  <meta property="article:published_time" content="%s">'
+                '\n  <meta property="article:modified_time" content="%s">'
+                '\n  <meta property="article:section" content="%s">'
+                % (art["date"], TODAY, clean(act["nom"])))
+
+    return (
+        head(art["titre"], clean(art["meta"]), url,
+             [ld_article(art, dept), ld_entreprise(art, dept),
+              ld_faq_article(art), ld_ariane(fil)],
+             art["mots_cles"], meta_sup, og_type="article")
+        + header("conseils") + ariane(fil) + f"""
+
+<main id="contenu">
+
+<article class="hero hero--compact hero--article">
+  <div class="container">
+    <span class="eyebrow">Urgence {d_nom} ({d_num}) · {act['nom_court']}</span>
+    <h1>{art['h1']}</h1>
+    <p class="hero__sub">{art['chapo']}</p>
+    <div class="hero__actions">
+      <a class="btn btn--blanc btn--xl" href="tel:{TEL_LIEN}" data-cta="article-hero">
+        {SVG['tel']} Appeler le {TEL}
+      </a>
+      <a class="btn btn--outline-blanc btn--xl" href="#devis">Être rappelé</a>
+    </div>
+  </div>
+</article>
+
+<section class="section">
+  <div class="container">
+    <div class="prose prose--article">
+      {ligne_meta(art, dept, act)}
+      {sommaire(art)}
+      {bloc_urgent(art)}
+{corps_article(art)}{lien_contextuel(art, dept, act)}
+      {visuel}
+      {bloc_villes(art, dept, act)}
+      {zone_locale(art, dept, act)}
+    </div>
+  </div>
+</section>
+
+<section class="section section--pale">
+  <div class="container">
+    <div class="section-head center">
+      <span class="eyebrow">Questions fréquentes</span>
+      <h2 id="questions">{art['court']}&nbsp;: vos questions</h2>
+      <p class="lead">Ce que l'on nous demande le plus souvent {du}.</p>
+    </div>
+    <div class="faq">{bloc_faq(art)}</div>
+  </div>
+</section>
+
+{cta_final(cta_titre,
+           "Un technicien vous répond directement, qualifie la situation au téléphone "
+           "et vous annonce un délai réaliste. Devis gratuit, tarif validé avant "
+           "intervention, garantie décennale.",
+           "cta-article-" + art["slug"][:28], dept=dept, act=act)}
+
+<section class="section section--fond">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">À lire aussi</span>
+      <h2>Autres situations d'urgence {du}</h2>
+    </div>
+    <div class="art-grille">{lies}</div>
+  </div>
+</section>
+
+</main>
+""" + footer())
+
+
+def page_conseils(page=1, dept=None):
+    """Liste des conseils, paginée, éventuellement filtrée sur un département."""
+    tous = articles_tries(dept)
+    total_pages = nb_pages(dept)
+    lot = tous[(page - 1) * PAR_PAGE: page * PAR_PAGE]
+    url = url_conseils(page, dept)
+
+    suffixe = "" if page == 1 else " — page %d" % page
+    if dept:
+        d_nom, d_num = dept["nom"], dept["num"]
+        titre = "Conseils d'urgence %s (%s)%s — Les Plombiers Bretons" % (d_nom, d_num, suffixe)
+        desc = ("Que faire en urgence %s %s : %d situations de plomberie et de "
+                "dégorgement expliquées geste par geste. 02 20 05 00 76."
+                % (dept["article"], d_nom, len(tous)))
+        h1 = "Conseils d'urgence %s %s" % (dept["article"], d_nom)
+        chapo = ("%d situations que nous traitons toute l'année %s %s, expliquées sans "
+                 "jargon&nbsp;: les gestes des premières minutes, ce qu'il ne faut "
+                 "surtout pas faire, et le moment où il faut appeler."
+                 % (len(tous), dept["article"], d_nom))
+        mots = ("conseils plomberie urgence %s, que faire fuite d'eau %s, "
+                "canalisation bouchée %s, WC bouché %s"
+                % (d_nom, d_nom, d_nom, d_nom))
+        fil = [("Accueil", "/"), ("Conseils d'urgence", "/conseils/"),
+               ("%s (%s)" % (d_nom, d_num), url_conseils(dept=dept))]
+        eyebrow = "Conseils · %s (%s)" % (d_nom, d_num)
+    else:
+        # Au-delà de la première page, un titre plus court laisse la place au
+        # numéro sans dépasser ce que Google affiche.
+        titre = ("Conseils d'urgence plomberie & dégorgement — Les Plombiers Bretons" if page == 1
+                 else "Conseils d'urgence en Bretagne — page %d — Les Plombiers Bretons" % page)
+        desc = ("Que faire en urgence en Bretagne : fosse qui déborde, canalisation "
+                "gelée, colonne bouchée, dégât des eaux, chauffe-eau qui fuit, odeur "
+                "de brûlé.")
+        h1 = "Que faire en attendant le dépanneur&nbsp;?"
+        chapo = ("%d situations que nous traitons toute l'année en Bretagne, expliquées "
+                 "sans jargon&nbsp;: les gestes des premières minutes, ce qu'il ne faut "
+                 "surtout pas faire, et le moment où il faut appeler." % len(ARTICLES))
+        mots = ("conseils plomberie urgence Bretagne, que faire fuite d'eau, "
+                "canalisation bouchée que faire, WC bouché Bretagne")
+        fil = [("Accueil", "/"), ("Conseils d'urgence", "/conseils/")]
+        eyebrow = "Conseils d'urgence"
+
+    if page > 1:
+        fil = fil + [("Page %d" % page, url)]
+        chapo = ("Page %d sur %d. " % (page, total_pages)) + chapo
+        # Description distincte par page : sans cela, Google verrait quatre
+        # pages au résumé identique.
+        desc = "Page %d sur %d. %s" % (page, total_pages, desc)
+
+    compteur = ("Articles %d à %d sur %d"
+                % ((page - 1) * PAR_PAGE + 1, (page - 1) * PAR_PAGE + len(lot), len(tous)))
+
+    return (
+        head(titre, desc, url, [ld_ariane(fil)], mots)
+        + header("conseils") + ariane(fil) + f"""
+
+<main id="contenu">
+
+<section class="hero hero--compact">
+  <div class="container">
+    <span class="eyebrow">{eyebrow}</span>
+    <h1>{h1}</h1>
+    <p class="hero__sub">{chapo}</p>
+    <div class="hero__actions">
+      <a class="btn btn--blanc btn--xl" href="tel:{TEL_LIEN}" data-cta="conseils-hero">
+        {SVG['tel']} Appeler le {TEL}
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    {filtres_conseils(dept)}
+    <p class="compteur">{compteur}</p>
+    {grille_conseils(lot, avec_titres=dept is None)}
+    {pagination(page, total_pages, dept)}
+  </div>
+</section>
+
+{cta_final("Votre situation n'est pas dans la liste&nbsp;?",
+           "Décrivez-la nous au téléphone. Un technicien qualifie le problème, vous "
+           "annonce un délai et un ordre de prix avant tout déplacement. "
+           "Devis gratuit et sans engagement.",
+           "cta-conseils" + ("" if dept is None else "-" + dept["num"])
+           + ("" if page == 1 else "-p%d" % page), dept=dept)}
+
+</main>
+""" + footer())
+
+
+# ============================================================== ACCUEIL
+def page_index():
+    titre = "Les Plombiers Bretons — Plombier & Dégorgement en Bretagne (22, 29, 35, 56)"
+    desc = ("Plombier et dégorgement de canalisations en urgence 24/7 sur les "
+            "Côtes-d'Armor, le Finistère, l'Ille-et-Vilaine et le Morbihan. "
+            "Devis gratuit — %s." % TEL)
+    fil = [("Accueil", "/")]
+
+    # Cartes services : une grande carte par métier
+    svc = ""
+    for act in ACTIVITES:
+        items = "".join('<li><span class="tick">%s</span><span>%s</span></li>'
+                        % (picto("check", 15), t) for t, _ in act["prestations"][:5])
+        liens = "".join('<a href="%s"><span>%s</span> %s</a>'
+                        % (url_landing(act, d), d["num"], d["nom"]) for d in DEPARTEMENTS)
+        svc += f"""
+      <article class="svc svc--{act['key']}">
+        <div class="svc__tete">
+          <span class="icon-box">{ICONES[act['key']]}</span>
+          <h3>{act['nom']}</h3>
+        </div>
+        <p>{act['accroche']}</p>
+        <ul class="checks svc__list">{items}</ul>
+        <div class="svc__foot">
+          <p class="svc__choix">Choisir votre département</p>
+          <div class="svc__depts">{liens}</div>
+        </div>
+      </article>"""
+
+    # Départements
+    depts = ""
+    for d in DEPARTEMENTS:
+        liens = "".join('<a href="%s">%s</a>' % (url_landing(a, d), a["nom_court"])
+                        for a in ACTIVITES)
+        depts += f"""
+      <article class="dept">
+        <div class="dept__num">{d['num']}</div>
+        <div>
+          <div class="dept__nom">{d['nom']}</div>
+          <p class="dept__villes">{", ".join(d['villes'][:4])}…</p>
+          <div class="dept__links">{liens}</div>
+        </div>
+      </article>"""
+
+    # Avis (deux par métier)
+    avis = ""
+    paires = [(ACTIVITES[0], DEPARTEMENTS[0], 0), (ACTIVITES[1], DEPARTEMENTS[2], 0),
+              (ACTIVITES[1], DEPARTEMENTS[3], 1)]
+    for act, dep, i in paires:
+        txt, nom, note = act["avis"][i]
+        avis += carte_avis(txt, nom, note, dep["villes"][0], dep["num"], act["nom_court"])
+
+    # Maillage complet des 8 pages
+    table = ""
+    for d in DEPARTEMENTS:
+        cellules = "".join('<td><a href="%s">%s %s</a></td>'
+                           % (url_landing(a, d), a["nom_court"], d["num"]) for a in ACTIVITES)
+        table += '<tr><th scope="row">%s (%s)</th>%s</tr>' % (d["nom"], d["num"], cellules)
+
+    entetes = "".join('<th scope="col">%s</th>' % a["nom_court"] for a in ACTIVITES)
+
+    return (
+        head(titre, desc, "/", [ld_business(), ld_ariane(fil)],
+             "plombier Bretagne, dégorgement Bretagne, débouchage canalisation, dépannage "
+             "plomberie urgence 22 29 35 56, Les Plombiers Bretons")
+        + header("accueil") + f"""
+
+<main id="contenu">
+
+<section class="hero hero--accueil">
+  <div class="container">
+    <div class="hero__grid">
+      <div class="hero__haut">
+        <span class="hero__badge"><span class="dot dot--live"></span> Astreinte urgence 24h/24 — 7j/7</span>
+        <h1>Plombier &amp; dégorgement en Bretagne, <em>en urgence comme sur rendez-vous</em></h1>
+        <p class="hero__sub">Fuite d'eau, chauffe-eau en panne, WC ou canalisation bouchés&nbsp;:
+          Les Plombiers Bretons interviennent sur les Côtes-d'Armor&nbsp;(22), le
+          Finistère&nbsp;(29), l'Ille-et-Vilaine&nbsp;(35) et le Morbihan&nbsp;(56).</p>
+        <ul class="hero__points">
+          <li><span class="tick">{picto("check", 15)}</span><span>Un plombier au téléphone, pas un répondeur&nbsp;: délai annoncé dès l'appel</span></li>
+          <li><span class="tick">{picto("check", 15)}</span><span>Devis gratuit sans engagement, validé avant tout démarrage</span></li>
+          <li><span class="tick">{picto("check", 15)}</span><span>Véhicules équipés&nbsp;: réparation dès le premier passage dans la majorité des cas</span></li>
+        </ul>
+        <div class="hero__actions">
+          <a class="btn btn--urgence btn--xl" href="tel:{TEL_LIEN}" data-cta="hero">
+            {SVG['tel']} {TEL}
+          </a>
+          <a class="btn btn--outline-blanc btn--xl" href="#zones">Choisir mon département</a>
+        </div>
+      </div>
+      <div class="hero__form">{formulaire("hero-accueil", "Être rappelé en 30 minutes",
+                  "Votre téléphone et votre commune&nbsp;: c'est tout ce qu'il nous faut.",
+                  "Je veux être rappelé", express=True)}</div>
+    </div>
+    <p class="hero__villes">{SVG['pin']} <span><strong>Bases d'intervention&nbsp;:</strong>
+      Saint-Brieuc, Brest, Quimper, Rennes, Saint-Malo, Vannes, Lorient et toute la Bretagne.</span></p>
+  </div>
+</section>
+{bandeau_stats()}
+
+<section class="section" id="services">
+  <div class="container">
+    <div class="section-head section-head--split">
+      <div>
+        <span class="eyebrow">Nos deux métiers</span>
+        <h2>L'eau qui arrive, l'eau qui s'en va&nbsp;: nous nous occupons des deux</h2>
+      </div>
+      <p class="lead">Plomberie et dégorgement&nbsp;: deux métiers complémentaires, le même
+        niveau d'exigence et un interlocuteur unique dans les quatre départements bretons.</p>
+    </div>
+    <div class="grid grid--2">{svc}</div>
+  </div>
+</section>
+
+<section class="section section--pale" id="zones">
+  <div class="container">
+    <div class="zone-grid">
+      <div>
+        <span class="eyebrow">Zones d'intervention</span>
+        <h2>Sélectionnez votre département</h2>
+        <p class="lead">Chaque département dispose de ses pages dédiées&nbsp;: prestations,
+          tarifs indicatifs, délais et communes desservies.</p>
+        <div class="dept-grid">{depts}</div>
+      </div>
+      {carte()}
+    </div>
+  </div>
+</section>
+
+{bloc_reassurance()}
+
+{galerie(PHOTOS_ACCUEIL,
+         "Nos réalisations",
+         "Les Plombiers Bretons en images",
+         "Chantiers, matériel et équipes&nbsp;: notre travail sur le terrain dans les "
+         "quatre départements bretons.", 3)}
+
+{bloc_etapes("De votre appel à la remise en service",
+             "Une méthode identique sur les quatre départements bretons.")}
+
+<section class="section">
+  <div class="container">
+    <div class="section-head section-head--split">
+      <div>
+        <span class="eyebrow">Avis clients</span>
+        <h2>Ce que disent nos clients en Bretagne</h2>
+      </div>
+      <p class="lead">Des interventions de plomberie et de débouchage, racontées par
+        celles et ceux qui nous ont appelés.</p>
+    </div>
+    <div class="grid grid--3">{avis}</div>
+  </div>
+</section>
+
+{cta_final("Une urgence en Bretagne&nbsp;? Un plombier peut être chez vous dans l'heure.",
+           "Fuite d'eau, canalisation bouchée, chauffe-eau en panne&nbsp;: un professionnel "
+           "qualifié vous répond immédiatement et se déplace avec le matériel adapté. "
+           "Devis gratuit, tarif validé avant intervention.",
+           "cta-accueil")}
+
+<section class="section">
+  <div class="container">
+    <div class="apropos">
+      <div class="prose">
+        <span class="eyebrow">À propos</span>
+        <h2>Les Plombiers Bretons, des artisans de proximité</h2>
+        <p>Les Plombiers Bretons se consacrent à deux métiers et à eux seuls&nbsp;: la
+          <strong>plomberie</strong> — fuites, chauffe-eau, sanitaires, réseaux d'eau — et le
+          <strong>dégorgement de canalisations</strong> — débouchage, curage, inspection
+          caméra, fosses et regards. Nous intervenons chez les particuliers, les syndics de
+          copropriété, les bailleurs, les commerces et les collectivités de toute la région.</p>
+        <p>Notre organisation repose sur un principe simple&nbsp;: rester proche du terrain.
+          Des plombiers basés en Bretagne, des véhicules équipés du matériel professionnel
+          (furet électrique, pompe haute pression, caméra d'inspection, détection de fuite
+          non destructive), et une astreinte réelle les nuits et week-ends.</p>
+        <p>La transparence fait partie du service&nbsp;: nous annonçons un ordre de prix au
+          téléphone, nous établissons un devis gratuit sur place, et nous ne démarrons rien
+          sans votre accord. La facture correspond au devis accepté.</p>
+        <h3>Nos engagements</h3>
+        <ul class="checks">
+          <li><span class="tick">{picto("check", 15)}</span><span><strong>Intervention 24/7</strong> — astreinte nuits, week-ends et jours fériés</span></li>
+          <li><span class="tick">{picto("check", 15)}</span><span><strong>Devis gratuit</strong> — sans engagement, validé avant travaux</span></li>
+          <li><span class="tick">{picto("check", 15)}</span><span><strong>Artisans qualifiés</strong> — formés, équipés et assurés</span></li>
+          <li><span class="tick">{picto("check", 15)}</span><span><strong>Garantie décennale</strong> — sur les travaux qui l'exigent</span></li>
+          <li><span class="tick">{picto("check", 15)}</span><span><strong>Chantier propre</strong> — protection et nettoyage systématiques</span></li>
+        </ul>
+      </div>
+      <div>
+        {photo(PHOTO_EQUIPE[0], PHOTO_EQUIPE[1], PHOTO_EQUIPE[2], large=True, description=PHOTO_EQUIPE[3])}
+        <h3 class="titre-moyen" style="margin-top:34px">Nos 8 pages d'intervention</h3>
+        <div class="table-scroll">
+        <table class="tarifs tarifs--liens">
+          <thead><tr><th scope="col">Département</th>{entetes}</tr></thead>
+          <tbody>{table}</tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+""" + footer())
+
+
+# ============================================================== CONTACT
+def page_contact():
+    titre = "Contact & Devis Gratuit — Les Plombiers Bretons | Plomberie, Dégorgement"
+    desc = ("Contactez Les Plombiers Bretons pour un devis gratuit ou une intervention d'urgence en "
+            "Bretagne (22, 29, 35, 56). Téléphone %s — %s." % (TEL, EMAIL))
+    fil = [("Accueil", "/"), ("Contact", "/contact/")]
+
+    zones = "".join(
+        '<li><span class="tick tick--plein"></span><span><strong>%s (%s)</strong> — %s…</span></li>'
+        % (d["nom"], d["num"], ", ".join(d["villes"][:6])) for d in DEPARTEMENTS)
+
+    return (
+        head(titre, desc, "/contact/", [ld_business(), ld_ariane(fil)],
+             "contact Les Plombiers Bretons, devis gratuit plomberie Bretagne, urgence dépannage 22 29 35 56")
+        + header("contact") + ariane(fil) + f"""
+
+<main id="contenu">
+
+<section class="hero" style="padding:52px 0 60px">
+  <div class="container hero__grid">
+    <div>
+      <span class="hero__badge"><span class="dot dot--live"></span> Réponse sous 30 minutes ouvrées</span>
+      <h1>Contact &amp; devis express</h1>
+      <p class="hero__sub">Une urgence&nbsp;? Appelez directement&nbsp;: c'est toujours le plus
+        rapide. Pour un devis ou une demande planifiée, le formulaire suffit — nous vous
+        rappelons avec un créneau et un ordre de prix.</p>
+      <p>
+        <a class="cta__tel" href="tel:{TEL_LIEN}" data-cta="contact">{SVG['tel']} {TEL}</a>
+      </p>
+      <ul class="hero__points" style="margin-top:28px">
+        <li><span class="tick">{picto("mail", 13)}</span><span>{EMAIL}</span></li>
+        <li><span class="tick">{picto("chrono", 13)}</span><span>Astreinte urgence 24h/24 et 7j/7, jours fériés inclus</span></li>
+        <li><span class="tick">{picto("zone", 13)}</span><span>Interventions&nbsp;: Côtes-d'Armor (22), Finistère (29), Ille-et-Vilaine (35), Morbihan (56)</span></li>
+      </ul>
+    </div>
+    <div class="hero__form">{formulaire("contact-principal", "Formulaire de devis express",
+                "Département, type de panne, degré d'urgence&nbsp;: tout en 1 minute.",
+                "Obtenir un Devis Gratuit", message=True)}</div>
+  </div>
+</section>
+{bandeau_stats()}
+
+<section class="section">
+  <div class="container grid grid--2">
+    <div>
+      <span class="eyebrow">Nous joindre</span>
+      <h2>Trois façons de nous contacter</h2>
+      <div class="grid" style="gap:18px;margin-top:24px">
+        <article class="presta">
+          <div class="presta__ico">{SVG['tel']}</div>
+          <div><h3>Par téléphone — le plus rapide</h3>
+            <p><a href="tel:{TEL_LIEN}"><strong>{TEL}</strong></a> — un technicien vous répond
+               directement, 24h/24. Privilégiez l'appel pour toute urgence&nbsp;: fuite active,
+               refoulement, chauffe-eau en panne.</p></div>
+        </article>
+        <article class="presta">
+          <div class="presta__ico">{SVG['mail']}</div>
+          <div><h3>Par e-mail</h3>
+            <p><a href="mailto:{EMAIL}"><strong>{EMAIL}</strong></a> — idéal pour transmettre
+               des photos, un plan ou un cahier des charges. Réponse sous 24 h ouvrées.</p></div>
+        </article>
+        <article class="presta">
+          <div class="presta__ico">{SVG['form']}</div>
+          <div><h3>Par formulaire</h3>
+            <p>Remplissez le formulaire de devis ci-dessus&nbsp;: nous vous rappelons sous
+               30 minutes ouvrées avec un créneau et une estimation.</p></div>
+        </article>
+      </div>
+    </div>
+    <div>
+      {carte()}
+      <div class="encadre" style="margin-top:22px">
+        <h3>Zones d'intervention</h3>
+        <ul class="checks" style="margin-top:14px">{zones}</ul>
+        <p style="margin-top:18px;font-size:.92rem">Votre commune n'apparaît pas&nbsp;?
+          Appelez-nous&nbsp;: nous couvrons l'intégralité des quatre départements bretons,
+          y compris les communes rurales.</p>
+      </div>
+      <div class="encadre" style="margin-top:22px;background:var(--ecume)">
+        <h3>Professionnels, syndics et bailleurs</h3>
+        <p>Nous proposons des contrats d'entretien et des interventions récurrentes&nbsp;:
+          curage de colonnes, dégraissage de bacs à graisse, entretien des réseaux,
+          contrôle des installations. Demandez une proposition dédiée à
+          <a href="mailto:{EMAIL}">{EMAIL}</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+{bloc_etapes("Ce qui se passe après votre demande",
+             "Pas d'attente inutile, pas de prix découvert à la fin.")}
+
+{cta_final("Besoin d'une intervention aujourd'hui&nbsp;?",
+           "Nos techniciens sont en astreinte 24h/24 sur les quatre départements bretons. "
+           "Un appel suffit pour obtenir un délai ferme et un ordre de prix.",
+           "cta-contact")}
+
+</main>
+""" + footer())
+
+
+# ============================================================ PAGES LÉGALES
+ATTENTE = "en attente de documents"
+IDENT_PROVISOIRE = SITE["siren"] == ATTENTE
+
+
+def bloc_immatriculation():
+    """Les quatre identifiants de l'entreprise, ou une ligne d'attente unique.
+
+    SIREN, SIRET, RCS et TVA portent tous les mêmes neuf chiffres : les afficher
+    séparément n'a de sens qu'une fois renseignés. Tant qu'ils ne le sont pas,
+    une seule ligne le dit, plutôt que quatre lignes qui se contredisent.
+    """
+    if IDENT_PROVISOIRE:
+        return ("        <li><strong>Immatriculation&nbsp;:</strong> %s "
+                "(SIREN, SIRET, RCS et TVA intracommunautaire à renseigner)</li>" % ATTENTE)
+    return f"""        <li><strong>SIREN&nbsp;:</strong> {SITE['siren']}</li>
+        <li><strong>SIRET (siège)&nbsp;:</strong> {SITE['siret']}</li>
+        <li><strong>Numéro RCS&nbsp;:</strong> {SITE['rcs']}
+          (immatriculée au greffe de {SITE['greffe']} le {SITE['rcs_date']})</li>
+        <li><strong>Inscription au RNE&nbsp;:</strong> le {SITE['rne_date']}</li>
+        <li><strong>Numéro de TVA intracommunautaire&nbsp;:</strong> {SITE['tva']}</li>"""
+
+
+def page_mentions():
+    titre = "Mentions légales — Les Plombiers Bretons"
+    desc = ("Mentions légales du site Les Plombiers Bretons : éditeur, hébergeur, identité de "
+            "l'entreprise, assurances et propriété intellectuelle.")
+    fil = [("Accueil", "/"), ("Mentions légales", "/mentions-legales/")]
+    # Tant que la dénomination légale n'est pas renseignée, elle vaut le nom
+    # commercial : inutile de l'afficher deux fois de suite.
+    nom_commercial = ("" if SITE["nom_commercial"] == SITE["denomination"]
+                      else " — exerçant sous le nom commercial %s" % SITE["nom_commercial"])
+    return (
+        head(titre, desc, "/mentions-legales/", [ld_ariane(fil)])
+        + header() + ariane(fil) + f"""
+
+<main id="contenu">
+
+<section class="hero hero--compact">
+  <div class="container">
+    <span class="eyebrow">Informations légales</span>
+    <h1>Mentions légales</h1>
+    <p class="hero__sub">Éditeur du site, hébergeur, identité de l'entreprise,
+      assurances et propriété intellectuelle.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="prose">
+      <h2>1. Éditeur du site</h2>
+      <ul>
+        <li><strong>Dénomination&nbsp;:</strong> {SITE['denomination']}{nom_commercial}</li>
+        <li><strong>Forme juridique&nbsp;:</strong> {SITE['forme']}</li>
+        <li><strong>Siège social&nbsp;:</strong> {SITE['siege']}</li>
+{bloc_immatriculation()}
+        <li><strong>Code NAF / APE&nbsp;:</strong> {SITE['naf']} — {SITE['naf_libelle']}</li>
+        <li><strong>Date de création&nbsp;:</strong> {SITE['creation']}</li>
+        <li><strong>Téléphone&nbsp;:</strong> <a href="tel:{TEL_LIEN}">{TEL}</a></li>
+        <li><strong>E-mail&nbsp;:</strong> <a href="mailto:{EMAIL}">{EMAIL}</a></li>
+        <li><strong>Directeur de la publication&nbsp;:</strong> {SITE['dirigeant']}</li>
+      </ul>
+
+      <h2>2. Hébergement</h2>
+      <ul>
+        <li><strong>Hébergeur&nbsp;:</strong> {SITE['hebergeur']}</li>
+        <li><strong>Adresse&nbsp;:</strong> {SITE['hebergeur_adresse']}</li>
+        <li><strong>Site web&nbsp;:</strong>
+          <a href="{SITE['hebergeur_site']}" rel="noopener" target="_blank">hostinger.fr</a></li>
+      </ul>
+
+      <h2>3. Zone d'intervention</h2>
+      <p>Les interventions présentées sur ce site sont réalisées sur les départements des
+        Côtes-d'Armor&nbsp;(22), du Finistère&nbsp;(29), de l'Ille-et-Vilaine&nbsp;(35) et
+        du Morbihan&nbsp;(56). L'entreprise ne reçoit pas de public&nbsp;: elle se déplace
+        sur le lieu de l'intervention.</p>
+
+      <h2>4. Assurances professionnelles</h2>
+      <p>L'entreprise est assurée en responsabilité civile professionnelle et en
+        garantie décennale pour les travaux qui l'exigent.</p>
+      <ul>
+        <li><strong>Assureur&nbsp;:</strong> <em>[à compléter]</em></li>
+        <li><strong>N° de contrat&nbsp;:</strong> <em>[à compléter]</em></li>
+        <li><strong>Activités déclarées au contrat&nbsp;:</strong> <em>[à compléter]</em></li>
+        <li><strong>Couverture géographique&nbsp;:</strong> France métropolitaine</li>
+      </ul>
+      <p>L'attestation d'assurance est remise sur simple demande, et avant le démarrage de
+        tout chantier qui le justifie.</p>
+
+      <h2>5. Propriété intellectuelle</h2>
+      <p>L'ensemble des éléments du site (structure, textes, photographies, logo, identité
+        visuelle, code source) est la propriété des {SITE['denomination'].replace('Les ', '')} ou fait l'objet d'une
+        autorisation d'usage. Toute reproduction, représentation ou adaptation, totale ou
+        partielle, sans autorisation écrite préalable est interdite et constituerait une
+        contrefaçon au sens des articles L.335-2 et suivants du Code de la propriété
+        intellectuelle.</p>
+      <p>Les logos de tiers reproduits sur ce site (labels professionnels, assureur)
+        demeurent la propriété de leurs titulaires respectifs.</p>
+
+      <h2>6. Données personnelles</h2>
+      <p>Le traitement des données collectées par les formulaires est détaillé dans notre
+        <a href="/politique-de-confidentialite/">politique de confidentialité</a>, qui précise
+        les finalités, les bases légales, les durées de conservation et vos droits.</p>
+
+      <h2>7. Liens hypertextes</h2>
+      <p>Le site peut contenir des liens vers des sites tiers. {SITE['denomination']} n'exerce
+        aucun contrôle sur leur contenu et décline toute responsabilité à leur égard.</p>
+
+      <h2>8. Médiation de la consommation</h2>
+      <p>Conformément à l'article L.612-1 du Code de la consommation, tout consommateur a le
+        droit de recourir gratuitement à un médiateur de la consommation en vue de la
+        résolution amiable d'un litige. Médiateur compétent&nbsp;: <em>[à compléter]</em>.</p>
+
+      <h2>9. Tarifs affichés</h2>
+      <p>Les tarifs indiqués sur ce site sont des <strong>montants indicatifs TTC</strong>,
+        donnés à titre d'information et susceptibles de varier selon la nature exacte de
+        l'intervention, l'accessibilité, les pièces nécessaires et les éventuelles majorations
+        (nuit, dimanche, jours fériés). Seul le devis gratuit établi après diagnostic et
+        accepté par le client a valeur contractuelle.</p>
+    </div>
+  </div>
+</section>
+
+
+<section class="section section--pale">
+  <div class="container">
+    <div class="section-head center">
+      <span class="eyebrow">Zones d'intervention</span>
+      <h2>Où nous intervenons</h2>
+      <p class="lead">Quatre départements bretons couverts 7j/7. Cliquez sur le vôtre
+        pour accéder à la page correspondante.</p>
+    </div>
+    <div style="max-width:660px;margin:0 auto">{carte()}</div>
+  </div>
+</section>
+
+{cta_final("Une question sur nos prestations&nbsp;?",
+           "Notre équipe vous répond directement par téléphone ou par e-mail.",
+           "cta-mentions")}
+</main>
+""" + footer())
+
+
+def page_cgu():
+    titre = "Conditions Générales d'Utilisation — Les Plombiers Bretons"
+    desc = ("Conditions générales d'utilisation du site Les Plombiers Bretons : objet, accès, devis, "
+            "responsabilité et droit applicable.")
+    fil = [("Accueil", "/"), ("CGU", "/cgu/")]
+    return (
+        head(titre, desc, "/cgu/", [ld_ariane(fil)])
+        + header() + ariane(fil) + f"""
+
+<main id="contenu">
+
+<section class="hero hero--compact">
+  <div class="container">
+    <span class="eyebrow">Conditions d'utilisation</span>
+    <h1>Conditions Générales d'Utilisation</h1>
+    <p class="hero__sub">Objet, accès au site, demandes de devis, tarifs, responsabilité
+      et droit applicable.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="prose">
+      <p><strong>Dernière mise à jour&nbsp;: {TODAY}</strong></p>
+
+      <h2>Article 1 — Objet</h2>
+      <p>Les présentes conditions générales d'utilisation (CGU) régissent l'accès et
+        l'utilisation du site les-plombiers-bretons.fr, édité par Les Plombiers Bretons. Toute consultation du site implique
+        l'acceptation pleine et entière des présentes CGU.</p>
+
+      <h2>Article 2 — Accès au site</h2>
+      <p>Le site est accessible gratuitement à tout utilisateur disposant d'un accès à Internet.
+        Les frais de connexion et de matériel restent à la charge de l'utilisateur. Les Plombiers Bretons
+        s'efforcent d'assurer une disponibilité continue mais ne sauraient être tenus responsables
+        d'une interruption liée à une maintenance, une mise à jour ou un cas de force majeure.</p>
+
+      <h2>Article 3 — Services proposés</h2>
+      <p>Le site présente les prestations des Plombiers Bretons en matière de dégorgement de canalisations,
+        de plomberie sur les départements des Côtes-d'Armor&nbsp;(22), du
+        Finistère&nbsp;(29), de l'Ille-et-Vilaine&nbsp;(35) et du Morbihan&nbsp;(56). Les
+        informations publiées sont fournies à titre indicatif et peuvent être modifiées à tout
+        moment.</p>
+
+      <h2>Article 4 — Demandes de devis</h2>
+      <ul>
+        <li>Les formulaires permettent de solliciter un rappel ou un devis&nbsp;; ils ne
+          constituent ni une commande, ni un engagement contractuel.</li>
+        <li>Le devis est gratuit, sans engagement, et établi après diagnostic de la situation.</li>
+        <li>Seul le devis signé ou expressément accepté par le client engage les parties.</li>
+        <li>L'utilisateur s'engage à fournir des informations exactes permettant d'être
+          recontacté.</li>
+      </ul>
+
+      <h2>Article 5 — Tarifs</h2>
+      <p>Les tarifs affichés sur le site sont indicatifs, exprimés en euros TTC, et ne tiennent
+        pas compte des pièces spécifiques ni des majorations applicables aux interventions de
+        nuit, le dimanche et les jours fériés. Le prix définitif figure sur le devis validé
+        avant intervention.</p>
+
+      <h2>Article 6 — Droit de rétractation</h2>
+      <p>Conformément aux articles L.221-18 et suivants du Code de la consommation, le
+        consommateur dispose d'un délai de quatorze (14) jours pour exercer son droit de
+        rétractation sur un contrat conclu hors établissement. Ce droit ne s'applique pas
+        lorsque le client a expressément demandé une intervention d'urgence à domicile pour des
+        travaux de réparation strictement nécessaires (article L.221-28 du même code). Dans ce
+        cas, une demande d'exécution immédiate est recueillie auprès du client.</p>
+
+      <h2>Article 7 — Propriété intellectuelle</h2>
+      <p>Tous les contenus du site sont protégés par le droit de la propriété intellectuelle.
+        Toute reproduction ou exploitation non autorisée est interdite. Voir les
+        <a href="/mentions-legales/">mentions légales</a>.</p>
+
+      <h2>Article 8 — Responsabilité</h2>
+      <p>Les Plombiers Bretons mettent tout en œuvre pour fournir des informations exactes et actualisées, sans
+        garantir leur exhaustivité. Les conseils de première urgence figurant sur le site
+        (couper l'eau, couper le courant) sont donnés à titre informatif et ne se substituent
+        pas à l'intervention d'un professionnel. Les Plombiers Bretons ne sauraient être tenus responsable des
+        dommages résultant d'une manipulation effectuée par l'utilisateur.</p>
+
+      <h2>Article 9 — Données personnelles</h2>
+      <p>Le traitement des données collectées via les formulaires est détaillé dans notre
+        <a href="/politique-de-confidentialite/">politique de confidentialité</a>&nbsp;:
+        finalités, bases légales, durées de conservation, destinataires et exercice de vos
+        droits.</p>
+
+      <h2>Article 10 — Modification des CGU</h2>
+      <p>Les Plombiers Bretons se réservent le droit de modifier les présentes CGU à tout moment. La version
+        applicable est celle en vigueur à la date de consultation du site.</p>
+
+      <h2>Article 11 — Droit applicable</h2>
+      <p>Les présentes CGU sont soumises au droit français. En cas de litige, et après échec
+        d'une résolution amiable ou d'une médiation de la consommation, les tribunaux français
+        sont seuls compétents.</p>
+    </div>
+  </div>
+</section>
+
+
+<section class="section section--pale">
+  <div class="container">
+    <div class="section-head center">
+      <span class="eyebrow">Zones d'intervention</span>
+      <h2>Où nous intervenons</h2>
+      <p class="lead">Quatre départements bretons couverts 7j/7. Cliquez sur le vôtre
+        pour accéder à la page correspondante.</p>
+    </div>
+    <div style="max-width:660px;margin:0 auto">{carte()}</div>
+  </div>
+</section>
+
+{cta_final("Une intervention à planifier&nbsp;?",
+           "Devis gratuit et sans engagement sur les quatre départements bretons.",
+           "cta-cgu")}
+</main>
+""" + footer())
+
+
+def page_politique():
+    titre = "Politique de confidentialité — Les Plombiers Bretons"
+    desc = ("Comment Les Plombiers Bretons collecte et traite vos données personnelles : finalités, "
+            "bases légales, durées de conservation, destinataires et vos droits (RGPD).")
+    fil = [("Accueil", "/"), ("Politique de confidentialité", "/politique-de-confidentialite/")]
+
+    faq = [
+        ("Qui est responsable du traitement&nbsp;?",
+         "%s (%s). "
+         "Contact&nbsp;: <a href=\"mailto:%s\">%s</a>."
+         % (SITE["denomination"], SITE["forme"], EMAIL, EMAIL)),
+        ("Déposez-vous des cookies&nbsp;?",
+         "Non. Ce site ne dépose <strong>aucun cookie</strong>, ni traceur publicitaire, ni "
+         "outil de mesure d'audience. Aucun bandeau de consentement n'est donc nécessaire. "
+         "Si un outil de statistiques était ajouté plus tard, un bandeau conforme aux "
+         "recommandations de la CNIL serait mis en place au préalable."),
+        ("Mes données sortent-elles de l'Union européenne&nbsp;?",
+         "Non. Les données des formulaires sont transmises par messagerie à "
+         "<a href=\"mailto:%s\">%s</a> et traitées en France. L'hébergement du site est "
+         "assuré par %s, dont les serveurs utilisés sont situés dans l'Union européenne."
+         % (EMAIL, EMAIL, SITE["hebergeur"])),
+        ("Comment exercer mes droits&nbsp;?",
+         "Écrivez à <a href=\"mailto:%s\">%s</a> en précisant votre demande. Nous répondons "
+         "sous un mois. En cas de désaccord, vous pouvez saisir la CNIL "
+         "(<a href=\"https://www.cnil.fr\" rel=\"noopener\" target=\"_blank\">cnil.fr</a>)."
+         % (EMAIL, EMAIL)),
+    ]
+    faq_html = "".join(
+        '<details%s><summary>%s</summary><div class="faq__body">%s</div></details>'
+        % (" open" if i == 0 else "", q, r) for i, (q, r) in enumerate(faq))
+
+    lignes = [
+        ("Nom", "Vous identifier et vous appeler correctement",
+         "Consentement et mesures précontractuelles", "3 ans après le dernier contact"),
+        ("Téléphone", "Vous rappeler au sujet de votre demande",
+         "Consentement et mesures précontractuelles", "3 ans après le dernier contact"),
+        ("Ville et département", "Déterminer si l'intervention est dans notre zone et "
+         "estimer le délai", "Mesures précontractuelles", "3 ans après le dernier contact"),
+        ("Type d'intervention et degré d'urgence", "Orienter la demande vers le bon "
+         "technicien et prioriser les urgences", "Mesures précontractuelles",
+         "3 ans après le dernier contact"),
+        ("Message libre (facultatif)", "Comprendre le besoin avant le déplacement",
+         "Consentement", "3 ans après le dernier contact"),
+    ]
+    tableau = "".join('<tr><th scope="row">%s</th><td>%s</td><td>%s</td><td>%s</td></tr>' % l
+                      for l in lignes)
+
+    return (
+        head(titre, desc, "/politique-de-confidentialite/", [ld_ariane(fil)])
+        + header() + ariane(fil) + f"""
+
+<main id="contenu">
+
+<section class="hero hero--compact">
+  <div class="container">
+    <span class="eyebrow">Données personnelles</span>
+    <h1>Politique de confidentialité</h1>
+    <p class="hero__sub">Ce que nous collectons, pourquoi, pendant combien de temps, et
+      comment reprendre la main dessus.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="prose">
+      <p><strong>Dernière mise à jour&nbsp;: {TODAY}</strong></p>
+      <p>Nous ne collectons que ce qui est nécessaire pour vous rappeler et organiser une
+        intervention. Aucune donnée n'est vendue, louée ou cédée à des tiers à des fins
+        commerciales.</p>
+
+      <h2>1. Responsable du traitement</h2>
+      <ul>
+        <li><strong>{SITE['nom_commercial']}</strong> ({SITE['forme']})</li>
+        <li><strong>Siège&nbsp;:</strong> {SITE['siege']}</li>
+        <li><strong>Immatriculation&nbsp;:</strong> {SITE['siren']}</li>
+        <li><strong>Contact&nbsp;:</strong> <a href="mailto:{EMAIL}">{EMAIL}</a> ou
+          <a href="tel:{TEL_LIEN}">{TEL}</a></li>
+      </ul>
+      <p>Compte tenu de sa taille et de la nature de ses traitements, l'entreprise n'est pas
+        tenue de désigner un délégué à la protection des données.</p>
+
+      <h2>2. Données collectées et finalités</h2>
+      <p>Seuls les formulaires du site collectent des données. Aucune inscription, aucun
+        compte, aucun paiement en ligne.</p>
+    </div>
+
+    <div class="table-scroll" style="margin:26px 0 34px">
+    <table class="tarifs">
+      <caption>Les champs marqués d'un astérisque sur les formulaires sont les seuls
+        obligatoires&nbsp;: sans eux, nous ne pouvons pas vous rappeler.</caption>
+      <thead><tr><th scope="col">Donnée</th><th scope="col">Pourquoi</th>
+        <th scope="col">Base légale</th><th scope="col">Conservation</th></tr></thead>
+      <tbody>{tableau}</tbody>
+    </table>
+    </div>
+
+    <div class="prose">
+      <h2>3. Bases légales</h2>
+      <p>Les traitements reposent sur l'<strong>exécution de mesures précontractuelles</strong>
+        prises à votre demande (article 6.1.b du RGPD) et sur votre <strong>consentement</strong>
+        (article 6.1.a), recueilli par la case à cocher présente sur chaque formulaire. Une fois
+        l'intervention réalisée, la conservation des documents comptables repose sur nos
+        <strong>obligations légales</strong> (article 6.1.c).</p>
+
+      <h2>4. Durées de conservation</h2>
+      <ul>
+        <li><strong>Demande sans suite&nbsp;:</strong> 3 ans à compter du dernier contact.</li>
+        <li><strong>Client&nbsp;:</strong> durée de la relation, puis 10 ans pour les pièces
+          comptables (article L.123-22 du Code de commerce).</li>
+        <li><strong>Dossier lié à une garantie décennale&nbsp;:</strong> 10 ans à compter de la
+          réception des travaux, le temps que la garantie court.</li>
+      </ul>
+
+      <h2>5. Destinataires</h2>
+      <p>Les données sont accessibles au dirigeant et, le cas échéant, au technicien chargé de
+        l'intervention. Elles transitent par notre messagerie professionnelle et par
+        l'hébergement du site, assuré par {SITE['hebergeur']}
+        ({SITE['hebergeur_adresse']}), qui agit en qualité de sous-traitant au sens du RGPD.
+        Aucun autre destinataire.</p>
+
+      <h2>6. Cookies et mesure d'audience</h2>
+      <p>Ce site ne dépose <strong>aucun cookie</strong>&nbsp;: ni cookie publicitaire, ni
+        traceur tiers, ni outil de mesure d'audience. Les polices de caractères sont hébergées
+        sur notre propre domaine, et non appelées chez Google&nbsp;: aucune donnée de connexion
+        n'est donc transmise à un tiers lors de votre visite.</p>
+
+      <h2>7. Vos droits</h2>
+      <p>Conformément au Règlement (UE) 2016/679 et à la loi Informatique et Libertés, vous
+        disposez des droits d'accès, de rectification, d'effacement, de limitation,
+        d'opposition et de portabilité, ainsi que du droit de retirer votre consentement à tout
+        moment.</p>
+      <p>Pour les exercer, écrivez à <a href="mailto:{EMAIL}">{EMAIL}</a>. Nous répondons dans
+        un délai d'un mois. Si la réponse ne vous satisfait pas, vous pouvez introduire une
+        réclamation auprès de la CNIL, 3 place de Fontenoy, 75007 Paris —
+        <a href="https://www.cnil.fr" rel="noopener" target="_blank">cnil.fr</a>.</p>
+
+      <h2>8. Sécurité</h2>
+      <p>Le site est servi en HTTPS. Les demandes sont transmises à notre messagerie
+        professionnelle et ne sont pas stockées dans une base de données publique. Un champ
+        piège invisible protège les formulaires contre les envois automatisés.</p>
+
+      <h2>9. Modification de cette politique</h2>
+      <p>Cette politique peut être mise à jour, notamment si un nouvel outil est ajouté au
+        site. La date de dernière mise à jour figure en tête de page.</p>
+    </div>
+
+    <div class="faq" style="margin-top:44px">{faq_html}</div>
+  </div>
+</section>
+
+
+<section class="section section--pale">
+  <div class="container">
+    <div class="section-head center">
+      <span class="eyebrow">Zones d'intervention</span>
+      <h2>Où nous intervenons</h2>
+      <p class="lead">Quatre départements bretons couverts 7j/7. Cliquez sur le vôtre
+        pour accéder à la page correspondante.</p>
+    </div>
+    <div style="max-width:660px;margin:0 auto">{carte()}</div>
+  </div>
+</section>
+
+{cta_final("Une question sur vos données&nbsp;?",
+           "Écrivez-nous&nbsp;: nous répondons à toute demande d'accès, de rectification "
+           "ou d'effacement dans un délai d'un mois.",
+           "cta-politique")}
+</main>
+""" + footer())
+
+
+def page_404():
+    liens = "".join('<a href="%s">%s %s (%s)</a>' % (url_landing(a, d), a["nom_court"],
+                                                     d["nom"], d["num"])
+                    for a in ACTIVITES for d in DEPARTEMENTS)
+    return (
+        head("Page introuvable (404) — Les Plombiers Bretons",
+             "La page demandée n'existe pas. Retrouvez nos interventions en plomberie, "
+             "dégorgement en Bretagne.", None)
+        .replace('<meta name="robots" content="index, follow, max-snippet:-1, '
+                 'max-image-preview:large">', '<meta name="robots" content="noindex, follow">')
+        + header() + f"""
+
+<main id="contenu">
+
+<section class="hero hero--compact">
+  <div class="container">
+    <span class="eyebrow">Erreur 404</span>
+    <h1>Cette page n'existe pas (ou plus)</h1>
+    <p class="hero__sub">Le lien est peut-être erroné. Choisissez votre intervention et
+      votre département ci-dessous, ou appelez-nous directement&nbsp;: c'est encore
+      plus rapide.</p>
+    <div class="hero__actions">
+      <a class="btn btn--blanc btn--xl" href="tel:{TEL_LIEN}">{SVG['tel']} Appeler le {TEL}</a>
+      <a class="btn btn--outline-blanc btn--xl" href="/">Retour à l'accueil</a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <h2>Nos interventions en Bretagne</h2>
+    <div style="max-width:620px;margin:0 auto 38px">{carte()}</div>
+    <div class="liens-grid">{liens}</div>
+  </div>
+</section>
+</main>
+""" + footer())
+
+
+# ============================================================== SITEMAP
+def sitemap(pages):
+    urls = ""
+    for nom, prio, freq in pages:
+        urls += ("\n  <url><loc>%s%s</loc><lastmod>%s</lastmod>"
+                 "<changefreq>%s</changefreq><priority>%s</priority></url>"
+                 % (BASE, nom, TODAY, freq, prio))
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">%s\n</urlset>' % urls)
+
+
+
+# ================================================================= BUILD
+def main():
+    print("\nLes Plombiers Bretons — génération du site\n" + "-" * 62)
+    pages = [("/", "1.0", "weekly")]
+
+    ecrire("index.html", page_index())
+    for act in ACTIVITES:
+        for dept in DEPARTEMENTS:
+            ecrire(fichier_landing(act, dept), page_landing(act, dept))
+            pages.append((url_landing(act, dept), "0.9", "monthly"))
+
+    def ecrire_liste(dept=None):
+        """Écrit toutes les pages d'une liste paginée."""
+        for n in range(1, nb_pages(dept) + 1):
+            u = url_conseils(n, dept)
+            ecrire(u.strip("/") + "/index.html", page_conseils(n, dept))
+            pages.append((u, "0.8" if n == 1 else "0.5", "monthly"))
+
+    ecrire_liste()
+    for d in DEPARTEMENTS:
+        ecrire_liste(d)
+    for art in ARTICLES:
+        ecrire("conseils/%s/index.html" % art["slug"], page_article(art))
+        pages.append((url_article(art), "0.7", "monthly"))
+
+    ecrire("contact/index.html", page_contact())
+    ecrire("mentions-legales/index.html", page_mentions())
+    ecrire("cgu/index.html", page_cgu())
+    ecrire("politique-de-confidentialite/index.html", page_politique())
+    ecrire("404.html", page_404())          # servi tel quel par les hébergeurs
+    pages += [("/contact/", "0.8", "monthly"),
+              ("/mentions-legales/", "0.3", "yearly"),
+              ("/politique-de-confidentialite/", "0.3", "yearly"),
+              ("/cgu/", "0.3", "yearly")]
+
+    ecrire("sitemap.xml", sitemap(pages))
+    ecrire("robots.txt",
+           "User-agent: *\nAllow: /\n\nSitemap: %s/sitemap.xml\n" % BASE)
+
+    print("-" * 62)
+    listes = nb_pages() + sum(nb_pages(d) for d in DEPARTEMENTS)
+    print("%d pages HTML générées : 8 pages métier, %d articles d'urgence, "
+          "%d pages de rubrique, %d pages annexes.\n"
+          % (len(pages) + 1, len(ARTICLES), listes,
+             len(pages) + 1 - 9 - len(ARTICLES) - listes))
+
+
+if __name__ == "__main__":
+    main()

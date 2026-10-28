@@ -1,0 +1,42 @@
+EMPLACEMENTS PHOTO — LES PLOMBIERS BRETONS
+==========================================
+
+Toutes les photos sont EN ATTENTE : le site affiche un cadre « Photo en attente »
+à leur place. Déposez vos fichiers dans CE dossier en respectant EXACTEMENT les
+noms ci-dessous, puis relancez :  python3 tools/build.py
+(Une photo déposée sans relancer le build s'affiche quand même au chargement.)
+
+Format conseillé : JPEG, 1200 x 900 px (galeries) ou 1200 x 800 px (photos larges),
+poids < 250 Ko. Le cadrage est automatique (recadrage centré).
+
+PAGES PLOMBERIE (communes aux 4 départements)
+---------------------------------------------
+  plomberie-1.jpg            Diagnostic sous lavabo et recherche de fuite
+  plomberie-2.jpg            Intervention sur chauffe-eau
+  plomberie-3.jpg            Remplacement de canalisation enterrée
+  plomberie-4.jpg            Installation de salle de bain
+  plomberie-equipe.jpg       Remplacement de flexible de WC
+
+PAGES DÉGORGEMENT (communes aux 4 départements)
+-----------------------------------------------
+  degorgement-1.jpg          Débouchage de WC
+  degorgement-2.jpg          Débouchage de lavabo au furet
+  degorgement-3.jpg          Débouchage de receveur de douche
+  degorgement-4.jpg          Inspection vidéo par caméra
+  degorgement-5.jpg          Hydrocurage haute pression
+  degorgement-6.jpg          Pompage et vidange sur regard
+
+PAGE D'ACCUEIL
+--------------
+  degorgement-1.jpg          (déjà listée plus haut)
+  degorgement-5.jpg          (déjà listée plus haut)
+  degorgement-4.jpg          (déjà listée plus haut)
+  plomberie-1.jpg            (déjà listée plus haut)
+  plomberie-2.jpg            (déjà listée plus haut)
+  plomberie-4.jpg            (déjà listée plus haut)
+  equipe.jpg                 Nos équipes et nos véhicules
+
+Les légendes et textes alternatifs se modifient dans tools/data.py.
+
+IMPORTANT : n'utilisez que des photos dont vous détenez les droits (vos propres
+chantiers de préférence), jamais celles d'une autre entreprise.
