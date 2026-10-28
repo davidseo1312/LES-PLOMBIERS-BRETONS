@@ -385,48 +385,33 @@ ACTIVITES = [
         ],
         "photos": [
             ("degorgement-1.jpg",
-             "Technicien débouchant des WC à la ventouse",
-             "Débouchage de WC",
-             "Un WC qui refoule est l'urgence la plus fréquente. Nous commençons "
-             "toujours par la ventouse&nbsp;: elle suffit dans la majorité des cas et "
-             "n'abîme ni la céramique ni les joints. Si le bouchon résiste, le furet "
-             "électrique prend le relais dans la foulée. L'évacuation est testée devant "
-             "vous avant notre départ."),
+             "Plombier des Plombiers Bretons débouchant des WC au furet électrique",
+             "Débouchage de WC au furet",
+             "Un WC qui refoule est l'urgence la plus fréquente. Quand la ventouse ne "
+             "suffit pas, le furet électrique descend dans la cuvette et traverse le "
+             "bouchon sans abîmer la céramique ni les joints. L'évacuation est testée "
+             "devant vous avant notre départ."),
             ("degorgement-2.jpg",
-             "Débouchage d'un lavabo au furet électrique par un technicien",
-             "Débouchage de lavabo au furet",
-             "Sur un lavabo ou un évier, le bouchon se forme au siphon ou juste après, "
-             "là où graisses et cheveux s'accumulent. Le furet électrique traverse le "
-             "coude et racle la paroi sur plusieurs mètres, sans démonter le meuble. "
-             "Un rinçage final vérifie que l'écoulement est bien rétabli."),
+             "Plombier des Plombiers Bretons débouchant l'évacuation d'un évier de cuisine au furet",
+             "Débouchage d'évier de cuisine",
+             "Sur un évier, le bouchon se forme au siphon ou juste après, là où graisses "
+             "et résidus s'accumulent. Le furet électrique passe par le siphon et racle "
+             "la paroi sur plusieurs mètres, sans démonter le meuble. Le robinet ouvert "
+             "en grand vérifie que l'écoulement est bien rétabli."),
             ("degorgement-3.jpg",
-             "Débouchage d'un receveur de douche au furet électrique",
+             "Plombier des Plombiers Bretons débouchant un receveur de douche au furet électrique",
              "Débouchage de receveur de douche",
              "Une douche qui se vide lentement annonce un bouchon de cheveux et de savon "
              "dans la bonde. Le furet est introduit par la grille d'évacuation, sans "
              "casser ni déposer le receveur. L'intervention prend généralement moins "
              "d'une heure."),
             ("degorgement-4.jpg",
-             "Inspection vidéo d'une canalisation par caméra endoscopique",
-             "Inspection vidéo par caméra",
-             "Quand le bouchon revient sans cesse, la caméra dit pourquoi. Elle descend "
-             "dans la canalisation et montre en direct l'état de la paroi&nbsp;: dépôt de "
-             "graisse, racine infiltrée, tuyau affaissé ou fissuré. Vous repartez avec un "
-             "diagnostic précis et la localisation exacte du défaut."),
-            ("degorgement-5.jpg",
-             "Hydrocurage haute pression d'un regard d'assainissement par nos techniciens",
-             "Hydrocurage haute pression",
-             "L'hydrocurage nettoie toute la paroi de la canalisation, pas seulement le "
-             "bouchon. Un jet pouvant atteindre 200&nbsp;bars décolle graisses, tartre et "
-             "racines sur toute la longueur du réseau. C'est la solution durable lorsque "
-             "les débouchages se répètent."),
-            ("degorgement-6.jpg",
-             "Camion hydrocureur et son équipe lors d'un pompage sur regard",
-             "Pompage et vidange sur regard",
-             "Regard qui déborde, fosse pleine, cave inondée&nbsp;: le camion pompe et "
-             "évacue, puis nous contrôlons le bon écoulement du réseau. Les matières sont "
-             "acheminées vers un centre agréé et un bordereau d'élimination vous est "
-             "remis."),
+             "Plombier des Plombiers Bretons débouchant un regard extérieur au pied d'une descente d'eau",
+             "Débouchage de regard extérieur",
+             "Regard qui déborde au pied d'une descente, eaux pluviales qui stagnent&nbsp;: "
+             "le furet motorisé passe directement par le regard pour dégager le réseau "
+             "enterré. Si le bouchon revient, une inspection caméra dit pourquoi&nbsp;: "
+             "racine, affaissement ou contre-pente."),
         ],
         "photo_equipe": None,
         "prose_h3": [
@@ -476,18 +461,18 @@ ETAPES = [
 ]
 
 PHOTOS_ACCUEIL = [
-    ("degorgement-1.jpg", "Technicien débouchant des WC",
+    ("degorgement-1.jpg", "Débouchage de WC au furet électrique par un plombier",
      "Débouchage de WC",
-     "L'urgence la plus fréquente. Ventouse d'abord, furet électrique ensuite si le "
-     "bouchon résiste, et test de l'évacuation devant vous avant notre départ."),
-    ("degorgement-5.jpg", "Hydrocurage haute pression d'un regard par nos techniciens",
-     "Hydrocurage haute pression",
-     "Un jet pouvant atteindre 200&nbsp;bars décolle graisses, tartre et racines sur "
-     "toute la longueur du réseau. La solution quand les débouchages se répètent."),
-    ("degorgement-4.jpg", "Inspection vidéo d'une canalisation par caméra",
-     "Inspection vidéo par caméra",
-     "La caméra montre en direct l'état de la paroi et localise le défaut au mètre "
-     "près&nbsp;: racine, affaissement, fissure. Diagnostic remis par écrit."),
+     "L'urgence la plus fréquente. Furet électrique si la ventouse ne suffit pas, "
+     "et test de l'évacuation devant vous avant notre départ."),
+    ("degorgement-4.jpg", "Débouchage d'un regard extérieur au furet motorisé",
+     "Regard extérieur",
+     "Le furet motorisé dégage le réseau enterré directement par le regard, sans "
+     "rien casser. Inspection caméra si le bouchon revient."),
+    ("degorgement-3.jpg", "Débouchage d'un receveur de douche au furet",
+     "Douche bouchée",
+     "Le furet passe par la grille d'évacuation&nbsp;: ni casse, ni dépose du "
+     "receveur. Moins d'une heure dans la plupart des cas."),
     ("plomberie-1.jpg", "Démontage d'un siphon sous évier par un plombier",
      "Recherche de fuite",
      "Siphon, flexible ou raccord mural&nbsp;: nous identifions le point de fuite avant "
@@ -502,12 +487,17 @@ PHOTOS_ACCUEIL = [
      "raccord mis en pression et vérifié avant d'être encastré."),
 ]
 
-PHOTO_EQUIPE = ("equipe.jpg", "L'équipe des Plombiers Bretons et son véhicule d'intervention",
-                "Nos équipes et nos véhicules",
-                "Nos véhicules embarquent le matériel des deux métiers&nbsp;: furet, "
+PHOTO_EQUIPE = ("equipe.jpg", "Maxime, Pierre et Jérôme, l'équipe des Plombiers Bretons, devant leur camion d'intervention",
+                "Maxime, Pierre et Jérôme",
+                "Nos camions embarquent le matériel des deux métiers&nbsp;: furet motorisé, "
                 "pompe et caméra pour les canalisations, détection de fuite et pièces "
                 "courantes pour la plomberie. C'est ce qui permet de résoudre la "
                 "majorité des pannes dès le premier passage.")
+
+# Bandeau « équipe » : prénoms dans l'ordre de la photo, de gauche à droite.
+# Le second chiffre est la position horizontale de la personne sur la photo,
+# en % de la largeur : l'étiquette du prénom se place sous elle.
+EQUIPE = [("Maxime", 19), ("Pierre", 46), ("Jérôme", 79)]
 
 STATS = [
     ("24/7", "Astreinte urgence"),

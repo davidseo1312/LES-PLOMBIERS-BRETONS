@@ -53,15 +53,18 @@ retirées), décliné en `logo-200.webp` et `logo-400.webp` pour l'en-tête et l
 pied de page. Le favicon (`favicon.svg` / `favicon.png`) reprend la goutte
 bleue sur fond marine, plus lisible à 32 px que le logo complet.
 
-## Photos
+## Photos et équipe
 
-Les **5 photos de plomberie** sont en place (fuite sous évier, chaudière,
-canalisation encastrée, WC suspendu, mitigeur de douche). Les photos de
-dégorgement et la photo d'équipe de l'accueil sont **en attente** : chaque
-emplacement vide affiche un cadre « Photo en attente » avec le nom de fichier
-attendu. La liste complète
-est dans `assets/img/photos/LISEZ-MOI.txt` — déposez les fichiers sous ces
-noms puis relancez le build.
+Toutes les photos sont en place : **5 en plomberie** (fuite sous évier,
+chaudière, canalisation encastrée, WC suspendu, mitigeur de douche) et **4 en
+dégorgement** (WC, évier, douche, regard extérieur, tous au furet). La liste et
+la marche à suivre pour en changer sont dans `assets/img/photos/LISEZ-MOI.txt`.
+
+**Bandeau équipe** (accueil et page contact) : la photo de **Maxime, Pierre et
+Jérôme** devant le camion, en pleine largeur, avec le prénom de chacun posé
+sous lui, puis une bande marine avec le texte et le bouton d'appel. Prénoms et
+positions : `EQUIPE` dans `tools/data.py` ; le bandeau : `bandeau_equipe()`
+dans `tools/build.py`.
 
 ## ⚠ À compléter avant mise en ligne
 

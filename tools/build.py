@@ -18,7 +18,7 @@ from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from data import (SITE, DEPARTEMENTS, ACTIVITES, REASSURANCE, ETAPES, STATS,  # noqa: E402
-                  PHOTOS_ACCUEIL, PHOTO_EQUIPE)
+                  PHOTOS_ACCUEIL, PHOTO_EQUIPE, EQUIPE)
 from carte import CARTE_LARGEUR, CARTE_HAUTEUR, TRACES, CENTRES  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -564,6 +564,42 @@ def footer():
 <script src="{JS}" defer></script>
 </body>
 </html>"""
+
+
+def bandeau_equipe(titre_tag="h2"):
+    """Bandeau de présentation de l'équipe : la photo pleine largeur, le prénom
+    de chacun posé sous lui, puis une bande marine avec le texte et l'appel.
+
+    Les prénoms viennent de EQUIPE (tools/data.py), dans l'ordre de la photo.
+    """
+    noms = "".join('<li style="--x:%d%%"><span>%s</span></li>' % (x, n) for n, x in EQUIPE)
+    prenoms = ", ".join(n for n, _ in EQUIPE[:-1]) + " et " + EQUIPE[-1][0]
+    return f"""
+<section class="equipe" aria-labelledby="equipe-titre">
+  <div class="equipe__photo">
+    <img src="/assets/img/photos/equipe-bandeau.jpg"
+         srcset="/assets/img/photos/equipe.jpg 1200w, /assets/img/photos/equipe-bandeau.jpg 1536w"
+         sizes="100vw" width="1536" height="1024" decoding="async"
+         alt="{prenoms}, les plombiers de l'équipe Les Plombiers Bretons, devant leur camion d'intervention sur un port breton">
+    <ul class="equipe__noms" aria-hidden="true">{noms}</ul>
+  </div>
+  <div class="equipe__bande">
+    <div class="container equipe__grille">
+      <div>
+        <span class="eyebrow eyebrow--clair">Notre équipe bretonne</span>
+        <{titre_tag} id="equipe-titre">{prenoms}&nbsp;: vos plombiers en Bretagne</{titre_tag}>
+      </div>
+      <div>
+        <p>Trois plombiers, un même camion équipé pour les deux métiers, et la même
+          façon de travailler&nbsp;: un diagnostic expliqué, un prix annoncé avant de
+          commencer, un chantier rendu propre. Quand vous appelez, c'est l'un d'eux
+          qui vous répond et qui se déplace.</p>
+        <a class="btn btn--urgence btn--xl" href="tel:{TEL_LIEN}" data-cta="equipe">
+          {SVG['tel']} <span>Appeler l'équipe <span class="insecable">{TEL}</span></span></a>
+      </div>
+    </div>
+  </div>
+</section>"""
 
 
 # ---------------------------------------------------------------- photos
@@ -1657,6 +1693,7 @@ def page_index():
   </div>
 </section>
 {bandeau_stats()}
+{bandeau_equipe()}
 
 <section class="section" id="services">
   <div class="container">
@@ -1804,6 +1841,7 @@ def page_contact():
   </div>
 </section>
 {bandeau_stats()}
+{bandeau_equipe()}
 
 <section class="section">
   <div class="container grid grid--2">

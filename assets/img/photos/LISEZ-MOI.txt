@@ -1,9 +1,9 @@
 EMPLACEMENTS PHOTO — LES PLOMBIERS BRETONS
 ==========================================
 
-[FOURNIE] = photo en place. Les autres sont EN ATTENTE : le site affiche un cadre
-« Photo en attente » à leur place. Déposez vos fichiers dans CE dossier en
-respectant EXACTEMENT les noms ci-dessous, puis relancez :  python3 tools/build.py
+[FOURNIE] = photo en place. Pour en ajouter ou en remplacer une, déposez le
+fichier dans CE dossier sous le nom exact ci-dessous, puis relancez :
+    python3 tools/build.py
 
 Format conseillé : JPEG, 1200 x 800 px environ, poids < 250 Ko.
 
@@ -17,22 +17,25 @@ PAGES PLOMBERIE (communes aux 4 départements)
 
 PAGES DÉGORGEMENT (communes aux 4 départements)
 -----------------------------------------------
-  degorgement-1.jpg          à fournir  Débouchage de WC
-  degorgement-2.jpg          à fournir  Débouchage de lavabo au furet
-  degorgement-3.jpg          à fournir  Débouchage de receveur de douche
-  degorgement-4.jpg          à fournir  Inspection vidéo par caméra
-  degorgement-5.jpg          à fournir  Hydrocurage haute pression
-  degorgement-6.jpg          à fournir  Pompage et vidange sur regard
+  degorgement-1.jpg          [FOURNIE]  Débouchage de WC au furet
+  degorgement-2.jpg          [FOURNIE]  Débouchage d'évier de cuisine
+  degorgement-3.jpg          [FOURNIE]  Débouchage de receveur de douche
+  degorgement-4.jpg          [FOURNIE]  Débouchage de regard extérieur
 
 PAGE D'ACCUEIL
 --------------
   degorgement-1.jpg          (déjà listée plus haut)
-  degorgement-5.jpg          (déjà listée plus haut)
   degorgement-4.jpg          (déjà listée plus haut)
+  degorgement-3.jpg          (déjà listée plus haut)
   plomberie-1.jpg            (déjà listée plus haut)
   plomberie-2.jpg            (déjà listée plus haut)
   plomberie-4.jpg            (déjà listée plus haut)
-  equipe.jpg                 à fournir  Nos équipes et nos véhicules
+  equipe.jpg                 [FOURNIE]  Maxime, Pierre et Jérôme
+
+BANDEAU ÉQUIPE (accueil et contact)
+-----------------------------------
+  equipe-bandeau.jpg         [FOURNIE]  Maxime, Pierre et Jérôme devant le camion (grand format)
+  Les prénoms et leur position sur la photo se règlent dans EQUIPE (tools/data.py).
 
 Les légendes et textes alternatifs se modifient dans tools/data.py.
 
