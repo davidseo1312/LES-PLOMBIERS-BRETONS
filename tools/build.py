@@ -179,8 +179,8 @@ def head(titre, description, canonical, extra_json=None, mots_cles="", extra_met
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Les Plombiers Bretons — plomberie et dégorgement en Bretagne">
   <meta name="twitter:card" content="summary_large_image">{extra_meta}
-  <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="/assets/img/favicon.png" type="image/png">
+  <link rel="icon" href="/assets/img/favicon-48.png" sizes="48x48" type="image/png">
+  <link rel="icon" href="/assets/img/favicon-512.png" sizes="512x512" type="image/png">
   <link rel="apple-touch-icon" href="/assets/img/favicon.png">
   <link rel="preload" href="/assets/fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/assets/fonts/montserrat-800.woff2" as="font" type="font/woff2" crossorigin>
@@ -416,7 +416,17 @@ def bloc_reassurance(dept=None):
 </section>"""
 
 
-def cta_final(titre, texte, idp, dept=None, act=None):
+def cta_final(titre, texte, idp, dept=None, act=None, complet=False):
+    """Bloc d'appel de bas de page. C'est le SEUL formulaire de chaque page :
+    tous les liens « Être rappelé » (#devis) y descendent.
+    complet : formulaire détaillé avec message libre (page Contact)."""
+    if complet:
+        form = formulaire(idp, "Formulaire de devis express",
+                          "Département, type de panne, degré d'urgence&nbsp;: tout en 1 minute.",
+                          "Obtenir un devis gratuit", message=True)
+    else:
+        form = formulaire(idp, "Être rappelé rapidement", "Téléphone et commune&nbsp;: c'est tout.",
+                          "Je veux être rappelé", dept=dept, act=act, express=True)
     return f"""
 <section class="cta" id="devis">
   <div class="container">
@@ -431,8 +441,7 @@ def cta_final(titre, texte, idp, dept=None, act=None):
         </a>
         <p class="cta__dispo">24h/24 et 7j/7 · Devis gratuit · Prix validé avant intervention</p>
       </div>
-      {formulaire(idp, "Être rappelé rapidement", "Téléphone et commune&nbsp;: c'est tout.",
-                  "Je veux être rappelé", dept=dept, act=act, express=True)}
+      {form}
     </div>
   </div>
 </section>"""
@@ -564,6 +573,17 @@ def footer():
 <script src="{JS}" defer></script>
 </body>
 </html>"""
+
+
+def hero_photo(fichier, alt, legende):
+    """Photo du bandeau d'ouverture, à droite du titre (le formulaire est en
+    bas de page). Chargée en priorité : c'est la première image visible."""
+    return f"""
+      <figure class="hero__photo">
+        <img src="/assets/img/photos/{fichier}" alt="{alt}" width="1200" height="800"
+             fetchpriority="high" decoding="async">
+        <figcaption>{picto("check", 15)} {legende}</figcaption>
+      </figure>"""
 
 
 def bandeau_equipe(titre_tag="h2"):
@@ -906,10 +926,7 @@ def page_landing(act, dept):
           <a class="btn btn--outline-blanc btn--xl" href="#tarifs">Voir les tarifs</a>
         </div>
       </div>
-      <div class="hero__form">{formulaire("hero-" + act["key"] + "-" + d_num,
-                  "Être rappelé en 30 minutes",
-                  "Deux informations suffisent&nbsp;: un %s %s vous rappelle." % (act["pro"], du),
-                  "Je veux être rappelé", dept=dept, act=act, express=True)}</div>
+      {hero_photo(*act["photo_hero"])}
     </div>
     <p class="hero__villes">{SVG['pin']} <span><strong>Nous intervenons&nbsp;:</strong>
       {", ".join(dept["villes"][:8])} et toutes les communes {du}.</span></p>
@@ -1684,9 +1701,8 @@ def page_index():
           <a class="btn btn--outline-blanc btn--xl" href="#zones">Choisir mon département</a>
         </div>
       </div>
-      <div class="hero__form">{formulaire("hero-accueil", "Être rappelé en 30 minutes",
-                  "Votre téléphone et votre commune&nbsp;: c'est tout ce qu'il nous faut.",
-                  "Je veux être rappelé", express=True)}</div>
+      {hero_photo("plomberie-4.jpg", "Plombier des Plombiers Bretons posant un WC suspendu",
+                  "Pose de WC suspendu")}
     </div>
     <p class="hero__villes">{SVG['pin']} <span><strong>Bases d'intervention&nbsp;:</strong>
       Saint-Brieuc, Brest, Quimper, Rennes, Saint-Malo, Vannes, Lorient et toute la Bretagne.</span></p>
@@ -1818,13 +1834,13 @@ def page_contact():
 
 <main id="contenu">
 
-<section class="hero" style="padding:52px 0 60px">
-  <div class="container hero__grid">
+<section class="hero hero--compact">
+  <div class="container">
     <div>
       <span class="hero__badge"><span class="dot dot--live"></span> Réponse sous 30 minutes ouvrées</span>
       <h1>Contact &amp; devis express</h1>
       <p class="hero__sub">Une urgence&nbsp;? Appelez directement&nbsp;: c'est toujours le plus
-        rapide. Pour un devis ou une demande planifiée, le formulaire suffit — nous vous
+        rapide. Pour un devis ou une demande planifiée, le formulaire en bas de page suffit — nous vous
         rappelons avec un créneau et un ordre de prix.</p>
       <p>
         <a class="cta__tel" href="tel:{TEL_LIEN}" data-cta="contact">{SVG['tel']} {TEL}</a>
@@ -1835,9 +1851,6 @@ def page_contact():
         <li><span class="tick">{picto("zone", 13)}</span><span>Interventions&nbsp;: Côtes-d'Armor (22), Finistère (29), Ille-et-Vilaine (35), Morbihan (56)</span></li>
       </ul>
     </div>
-    <div class="hero__form">{formulaire("contact-principal", "Formulaire de devis express",
-                "Département, type de panne, degré d'urgence&nbsp;: tout en 1 minute.",
-                "Obtenir un Devis Gratuit", message=True)}</div>
   </div>
 </section>
 {bandeau_stats()}
@@ -1865,7 +1878,7 @@ def page_contact():
         <article class="presta">
           <div class="presta__ico">{SVG['form']}</div>
           <div><h3>Par formulaire</h3>
-            <p>Remplissez le formulaire de devis ci-dessus&nbsp;: nous vous rappelons sous
+            <p>Remplissez le formulaire de devis en bas de page&nbsp;: nous vous rappelons sous
                30 minutes ouvrées avec un créneau et une estimation.</p></div>
         </article>
       </div>
@@ -1896,7 +1909,7 @@ def page_contact():
 {cta_final("Besoin d'une intervention aujourd'hui&nbsp;?",
            "Nos techniciens sont en astreinte 24h/24 sur les quatre départements bretons. "
            "Un appel suffit pour obtenir un délai ferme et un ordre de prix.",
-           "cta-contact")}
+           "contact-principal", complet=True)}
 
 </main>
 """ + footer())
@@ -2368,6 +2381,10 @@ def page_404():
     <div class="liens-grid">{liens}</div>
   </div>
 </section>
+{cta_final("Besoin d'un plombier&nbsp;?",
+           "Un plombier vous répond directement, qualifie la situation au téléphone et "
+           "vous annonce un délai réaliste. Devis gratuit et sans engagement.",
+           "cta-404")}
 </main>
 """ + footer())
 

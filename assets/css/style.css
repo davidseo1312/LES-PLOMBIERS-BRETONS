@@ -1000,3 +1000,28 @@ h3, h4 { font-weight: 700; line-height: 1.32; letter-spacing: -.012em; font-size
   .equipe__bande .btn { width: 100%; }
 }
 .insecable { white-space: nowrap; }
+
+/* ---------- Photo du bandeau d'ouverture ----------
+   Elle remplace le formulaire du haut : il n'y a plus qu'un formulaire
+   par page, en bas (#devis). */
+.hero__photo { position: relative; margin: 0; align-self: center; }
+.hero__photo img {
+  width: 100%; aspect-ratio: 4 / 3.4; object-fit: cover;
+  border: 6px solid #fff; box-shadow: var(--ombre-forte);
+}
+.hero__photo figcaption {
+  position: absolute; left: -14px; bottom: 26px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px; background: #fff; color: var(--marine);
+  font-size: .88rem; font-weight: 700; box-shadow: var(--ombre);
+  border-left: 4px solid var(--orange);
+}
+.hero__photo figcaption svg { color: var(--bleu); }
+@media (max-width: 1040px) {
+  .hero__photo { max-width: 620px; }
+  .hero__photo figcaption { left: 12px; }
+}
+@media (max-width: 720px) {
+  .hero__photo img { aspect-ratio: 4 / 3; border-width: 4px; }
+  .hero__photo figcaption { bottom: 14px; font-size: .8rem; padding: 8px 12px; }
+}

@@ -124,6 +124,9 @@ DEPARTEMENTS = [
 ACTIVITES = [
     {
         "key": "plomberie",
+        "photo_hero": ("plomberie-5.jpg",
+                       "Plombier des Plombiers Bretons localisant une fuite au détecteur acoustique",
+                       "Recherche de fuite sans casser"),
         "slug": "plomberie-depannage",
         "nom": "Plomberie & Dépannage",
         "nom_court": "Plomberie",
@@ -290,6 +293,9 @@ ACTIVITES = [
 
     {
         "key": "degorgement",
+        "photo_hero": ("degorgement-5.jpg",
+                       "Hydrocurage d'un regard par l'équipe des Plombiers Bretons et son camion hydrocureur",
+                       "Camion hydrocureur sur place"),
         "slug": "degorgement-canalisation",
         "nom": "Dégorgement & Canalisations",
         "nom_court": "Dégorgement",

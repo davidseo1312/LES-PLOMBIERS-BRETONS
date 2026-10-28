@@ -50,8 +50,14 @@ reste rond.
 
 **Logo** : `assets/img/logo-original.png` (fichier fourni, marges blanches
 retirées), décliné en `logo-200.webp` et `logo-400.webp` pour l'en-tête et le
-pied de page. Le favicon (`favicon.svg` / `favicon.png`) reprend la goutte
-bleue sur fond marine, plus lisible à 32 px que le logo complet.
+pied de page, et en favicon carré sur fond blanc (`favicon-48.png`,
+`favicon.png` 180 px pour iPhone, `favicon-512.png`).
+
+**Un seul formulaire par page**, en bas (`cta_final()`, ancre `#devis`) :
+tous les boutons « Être rappelé » y descendent. En haut de page, la place du
+formulaire est prise par une photo d'intervention (`photo_hero` dans
+`tools/data.py` pour les pages métier). Sur la page Contact, ce formulaire du
+bas est la version détaillée (département, type de panne, urgence, message).
 
 ## Photos et équipe
 
