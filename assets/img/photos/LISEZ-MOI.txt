@@ -7,30 +7,36 @@ fichier dans CE dossier sous le nom exact ci-dessous, puis relancez :
 
 Format conseillé : JPEG, 1200 x 800 px environ, poids < 250 Ko.
 
-PAGES PLOMBERIE (communes aux 4 départements)
----------------------------------------------
+GALERIE PLOMBERIE (6 photos, communes aux 4 départements)
+---------------------------------------------------------
   plomberie-1.jpg            [FOURNIE]  Fuite sous évier et démontage de siphon
   plomberie-2.jpg            [FOURNIE]  Intervention sur chaudière et chauffe-eau
   plomberie-3.jpg            [FOURNIE]  Reprise de canalisation encastrée
   plomberie-4.jpg            [FOURNIE]  Pose de WC suspendu
   plomberie-equipe.jpg       [FOURNIE]  Réparation de mitigeur de douche
+  plomberie-5.jpg            [FOURNIE]  Recherche de fuite non destructive
 
-PAGES DÉGORGEMENT (communes aux 4 départements)
------------------------------------------------
+GALERIE DÉGORGEMENT (6 photos, communes aux 4 départements)
+-----------------------------------------------------------
   degorgement-1.jpg          [FOURNIE]  Débouchage de WC au furet
   degorgement-2.jpg          [FOURNIE]  Débouchage d'évier de cuisine
   degorgement-3.jpg          [FOURNIE]  Débouchage de receveur de douche
   degorgement-4.jpg          [FOURNIE]  Débouchage de regard extérieur
+  degorgement-5.jpg          [FOURNIE]  Hydrocurage haute pression
+  degorgement-6.jpg          [FOURNIE]  Inspection vidéo par caméra
 
-PAGE D'ACCUEIL
---------------
+PHOTO D'ÉQUIPE (pages métier, à côté de la carte, et accueil)
+-------------------------------------------------------------
+  equipe.jpg                 [FOURNIE]  Maxime, Pierre et Jérôme
+
+GALERIE DE L'ACCUEIL
+--------------------
   degorgement-1.jpg          (déjà listée plus haut)
-  degorgement-4.jpg          (déjà listée plus haut)
+  degorgement-5.jpg          (déjà listée plus haut)
   degorgement-3.jpg          (déjà listée plus haut)
   plomberie-1.jpg            (déjà listée plus haut)
   plomberie-2.jpg            (déjà listée plus haut)
   plomberie-4.jpg            (déjà listée plus haut)
-  equipe.jpg                 [FOURNIE]  Maxime, Pierre et Jérôme
 
 BANDEAU ÉQUIPE (accueil et contact)
 -----------------------------------

@@ -55,10 +55,16 @@ bleue sur fond marine, plus lisible à 32 px que le logo complet.
 
 ## Photos et équipe
 
-Toutes les photos sont en place : **5 en plomberie** (fuite sous évier,
-chaudière, canalisation encastrée, WC suspendu, mitigeur de douche) et **4 en
-dégorgement** (WC, évier, douche, regard extérieur, tous au furet). La liste et
-la marche à suivre pour en changer sont dans `assets/img/photos/LISEZ-MOI.txt`.
+Toutes les photos sont en place, **six par métier** :
+
+- **Plomberie** : fuite sous évier, chaudière, canalisation encastrée, WC
+  suspendu, mitigeur de douche, recherche de fuite acoustique ;
+- **Dégorgement** : WC, évier, douche et regard extérieur au furet,
+  hydrocurage haute pression, inspection caméra.
+
+Sur chaque page métier, la photo de l'équipe accompagne la carte des communes.
+La liste et la marche à suivre pour en changer sont dans
+`assets/img/photos/LISEZ-MOI.txt`.
 
 **Bandeau équipe** (accueil et page contact) : la photo de **Maxime, Pierre et
 Jérôme** devant le camion, en pleine largeur, avec le prénom de chacun posé

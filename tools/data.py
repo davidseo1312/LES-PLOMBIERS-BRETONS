@@ -256,13 +256,23 @@ ACTIVITES = [
              "les évacuations, puis posons bâti-support et cuvette. Chaque raccord est mis "
              "en pression et vérifié avant d'être encastré&nbsp;: c'est à ce moment précis "
              "que se jouent les fuites futures."),
+            ("plomberie-equipe.jpg",
+             "Plombier des Plombiers Bretons réparant un mitigeur thermostatique de douche",
+             "Réparation de mitigeur de douche",
+             "Un mitigeur qui goutte ou ne tient plus la température se répare le plus "
+             "souvent sans changer l'appareil&nbsp;: cartouche, joints ou clapets, "
+             "remplacés sur place."),
+            ("plomberie-5.jpg",
+             "Plombier des Plombiers Bretons localisant une fuite encastrée au détecteur acoustique",
+             "Recherche de fuite non destructive",
+             "Une tache qui s'étend sur un mur ne dit pas où se trouve la fuite. Le "
+             "détecteur acoustique capte le bruit de l'eau qui s'échappe à travers la "
+             "cloison et localise le point au plus près&nbsp;: on n'ouvre que là où il "
+             "faut, et le rapport sert à votre assurance."),
         ],
-        "photo_equipe": ("plomberie-equipe.jpg",
-                         "Plombier des Plombiers Bretons réparant un mitigeur thermostatique de douche",
-                         "Réparation de mitigeur de douche",
-                         "Un mitigeur qui goutte ou ne tient plus la température se répare "
-                         "le plus souvent sans changer l'appareil&nbsp;: cartouche, joints "
-                         "ou clapets, remplacés sur place."),
+        "photo_equipe": ("equipe.jpg",
+                         "Maxime, Pierre et Jérôme, l'équipe des Plombiers Bretons, devant leur camion",
+                         "Maxime, Pierre et Jérôme", ""),
         "prose_h3": [
             ("Les dépannages les plus demandés {art} {dept}",
              ["Fuite sur flexible, siphon ou raccord sous évier",
@@ -412,8 +422,24 @@ ACTIVITES = [
              "le furet motorisé passe directement par le regard pour dégager le réseau "
              "enterré. Si le bouchon revient, une inspection caméra dit pourquoi&nbsp;: "
              "racine, affaissement ou contre-pente."),
+            ("degorgement-5.jpg",
+             "Hydrocurage haute pression d'un regard de rue par deux techniciens des Plombiers Bretons et leur camion hydrocureur",
+             "Hydrocurage haute pression",
+             "L'hydrocurage nettoie toute la paroi de la canalisation, pas seulement le "
+             "bouchon. Le camion hydrocureur envoie un jet haute pression qui décolle "
+             "graisses, tartre et racines sur toute la longueur du réseau. C'est la "
+             "solution durable lorsque les débouchages se répètent."),
+            ("degorgement-6.jpg",
+             "Inspection d'une canalisation par caméra depuis un regard, image affichée sur l'écran de contrôle",
+             "Inspection vidéo par caméra",
+             "Quand le bouchon revient sans cesse, la caméra dit pourquoi. Elle descend "
+             "dans la canalisation depuis le regard et montre en direct l'état de la "
+             "paroi&nbsp;: dépôt, racine, tuyau affaissé ou fissuré. Vous repartez avec "
+             "la localisation exacte du défaut."),
         ],
-        "photo_equipe": None,
+        "photo_equipe": ("equipe.jpg",
+                         "Maxime, Pierre et Jérôme, l'équipe des Plombiers Bretons, devant leur camion",
+                         "Maxime, Pierre et Jérôme", ""),
         "prose_h3": [
             ("Les bouchons les plus fréquents {art} {dept}",
              ["Lingettes et produits d'hygiène dans les WC — première cause d'urgence",
@@ -465,10 +491,10 @@ PHOTOS_ACCUEIL = [
      "Débouchage de WC",
      "L'urgence la plus fréquente. Furet électrique si la ventouse ne suffit pas, "
      "et test de l'évacuation devant vous avant notre départ."),
-    ("degorgement-4.jpg", "Débouchage d'un regard extérieur au furet motorisé",
-     "Regard extérieur",
-     "Le furet motorisé dégage le réseau enterré directement par le regard, sans "
-     "rien casser. Inspection caméra si le bouchon revient."),
+    ("degorgement-5.jpg", "Hydrocurage haute pression d'un regard avec le camion hydrocureur",
+     "Hydrocurage haute pression",
+     "Le camion hydrocureur décolle graisses, tartre et racines sur toute la "
+     "longueur du réseau. La solution quand les débouchages se répètent."),
     ("degorgement-3.jpg", "Débouchage d'un receveur de douche au furet",
      "Douche bouchée",
      "Le furet passe par la grille d'évacuation&nbsp;: ni casse, ni dépose du "
