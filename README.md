@@ -40,11 +40,18 @@ hébergeur (Hostinger, OVH, Netlify, GitHub Pages…).
 
 ## Design
 
-Charte propre au site : ardoise `#0d2a33` et bleu-vert de mer `#0f6e78` pour
-la structure, **corail `#c8431f` réservé aux boutons d'appel**, fonds sable.
-Titres en Fraunces (à empattements), texte en Manrope — deux fontes libres
-(OFL) hébergées localement, sans aucune requête vers un service tiers. Logo
-dessiné en SVG (goutte et vague), angles arrondis, pictogrammes au trait.
+Charte alignée sur le logo : **bleu marine `#0b2a5b`** et **bleu roi
+`#1557c0`** pour la structure, **gris acier** pour le texte et les fonds
+neutres, et **orange `#d4600f` réservé aux boutons d'appel**. Titres en
+**Montserrat**, texte en **Inter** — deux fontes libres (OFL) hébergées
+localement, sans aucune requête vers un service tiers. Angles très arrondis
+(cartes, boutons, champs, et les grands blocs sombres posés en panneaux
+arrondis).
+
+**Logo** : `assets/img/logo-original.png` (fichier fourni, marges blanches
+retirées), décliné en `logo-200.webp` et `logo-400.webp` pour l'en-tête et le
+pied de page. Le favicon (`favicon.svg` / `favicon.png`) reprend la goutte
+bleue sur fond marine, plus lisible à 32 px que le logo complet.
 
 ## Photos : en attente
 

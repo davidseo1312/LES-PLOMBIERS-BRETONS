@@ -139,14 +139,11 @@ ICONES = {
     "plomberie": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9h6V5h6v4h4"/><path d="M13 9v4a3 3 0 0 1-3 3H4"/><path d="M18 14c0 1.7-1.3 3-3 3"/><path d="M19 17.5c0 1.4-1.1 2.5-2.5 2.5"/></svg>',
 }
 
-# Le logo est dessiné en SVG, en ligne : il reste net à toutes les tailles et
-# ne coûte aucune requête. La goutte porte une vague — la mer, le littoral.
-LOGO_SVG = ('<svg class="marque__ico" viewBox="0 0 48 48" width="44" height="44" '
-            'aria-hidden="true"><rect width="48" height="48" rx="14" fill="var(--encre)"/>'
-            '<path d="M24 9s11 11.6 11 19.5a11 11 0 0 1-22 0C13 20.6 24 9 24 9z" '
-            'fill="var(--ecume)"/><path d="M14.2 30.5c2.6 0 2.6-2 5.2-2s2.6 2 5.2 2 2.6-2 '
-            '5.2-2 2.6 2 4.2 2" fill="none" stroke="var(--corail)" stroke-width="2.6" '
-            'stroke-linecap="round"/></svg>')
+# Logo fourni par le client, détouré de ses marges blanches. Deux résolutions :
+# le navigateur prend la seconde sur les écrans haute densité.
+LOGO_IMG = ('<img class="marque__logo" src="/assets/img/logo-200.webp" '
+            'srcset="/assets/img/logo-200.webp 1x, /assets/img/logo-400.webp 2x" '
+            'width="307" height="200" alt="Les Plombiers Bretons">')
 
 
 # ------------------------------------------------------------------ fragments
@@ -170,7 +167,7 @@ def head(titre, description, canonical, extra_json=None, mots_cles="", extra_met
 {lien_canonique}
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
   <meta name="author" content="{SITE['nom']}">
-  <meta name="theme-color" content="#0d2a33">
+  <meta name="theme-color" content="#0b2a5b">
   <meta property="og:type" content="{og_type}">
   <meta property="og:site_name" content="{SITE['nom']}">
   <meta property="og:locale" content="fr_FR">
@@ -185,8 +182,9 @@ def head(titre, description, canonical, extra_json=None, mots_cles="", extra_met
   <link rel="icon" href="/assets/img/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/img/favicon.png" type="image/png">
   <link rel="apple-touch-icon" href="/assets/img/favicon.png">
-  <link rel="preload" href="/assets/fonts/manrope-400.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/assets/fonts/fraunces-600.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/montserrat-800.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/img/logo-200.webp" as="image" imagesrcset="/assets/img/logo-200.webp 1x, /assets/img/logo-400.webp 2x">
   <link rel="stylesheet" href="{CSS}">{jsonld}
 </head>
 <body>
@@ -214,11 +212,7 @@ def header(courant=""):
     return f"""
 <header class="header">
   <div class="container header__inner">
-    <a class="marque" href="/" aria-label="Les Plombiers Bretons — accueil">
-      {LOGO_SVG}
-      <span class="marque__txt"><span class="marque__l1">Les Plombiers</span>
-        <span class="marque__l2">Bretons</span></span>
-    </a>
+    <a class="marque" href="/" aria-label="Les Plombiers Bretons — accueil">{LOGO_IMG}</a>
 
     <nav class="nav" id="nav-principal" aria-label="Navigation principale">
       <ul style="display:contents">
@@ -409,7 +403,7 @@ def bloc_reassurance(dept=None):
         '<div><h3>%s</h3><p>%s</p></div></article>'
         % (picto(ico, 28), t, d) for t, d, ico in REASSURANCE)
     return f"""
-<section class="section section--encre">
+<section class="section section--marine">
   <div class="container">
     <div class="section-head center">
       <span class="eyebrow eyebrow--clair">Nos engagements</span>
@@ -509,9 +503,7 @@ def footer():
 
     <div class="footer__grid">
       <div class="footer__marque">
-        <a class="marque marque--clair" href="/">{LOGO_SVG}
-          <span class="marque__txt"><span class="marque__l1">Les Plombiers</span>
-            <span class="marque__l2">Bretons</span></span></a>
+        <a class="marque marque--plaque" href="/" aria-label="Les Plombiers Bretons — accueil">{LOGO_IMG}</a>
         <p class="footer__accroche">Plomberie et dégorgement de canalisations, en urgence
           comme sur rendez-vous, sur les Côtes-d'Armor, le Finistère, l'Ille-et-Vilaine
           et le Morbihan.</p>
@@ -1849,7 +1841,7 @@ def page_contact():
           Appelez-nous&nbsp;: nous couvrons l'intégralité des quatre départements bretons,
           y compris les communes rurales.</p>
       </div>
-      <div class="encadre" style="margin-top:22px;background:var(--ecume)">
+      <div class="encadre" style="margin-top:22px;background:var(--bleu-pale)">
         <h3>Professionnels, syndics et bailleurs</h3>
         <p>Nous proposons des contrats d'entretien et des interventions récurrentes&nbsp;:
           curage de colonnes, dégraissage de bacs à graisse, entretien des réseaux,
