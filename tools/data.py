@@ -229,41 +229,40 @@ ACTIVITES = [
         ],
         "photos": [
             ("plomberie-1.jpg",
-             "Plombier inspectant le siphon et les arrivées d'eau sous un lavabo",
-             "Diagnostic sous lavabo et recherche de fuite",
+             "Plombier des Plombiers Bretons démontant le siphon sous un évier de cuisine",
+             "Fuite sous évier et démontage de siphon",
              "Une trace d'humidité sous un meuble peut venir du siphon, d'un flexible ou "
-             "d'un raccord mural. Nous inspectons chaque point avant de toucher quoi que "
-             "ce soit, pour réparer ce qui fuit réellement. Le diagnostic vous est "
-             "expliqué et chiffré avant toute intervention."),
+             "d'un raccord mural. Nous isolons chaque point avant de toucher quoi que ce "
+             "soit, bassine en place, pour réparer ce qui fuit réellement. Le diagnostic "
+             "vous est expliqué et chiffré avant toute intervention."),
             ("plomberie-2.jpg",
-             "Plombier intervenant sur le groupe de sécurité d'un chauffe-eau",
-             "Intervention sur chauffe-eau",
-             "L'absence d'eau chaude vient le plus souvent de la résistance, du thermostat "
-             "ou du groupe de sécurité. Nous testons ces trois points avant d'envisager un "
-             "remplacement&nbsp;: dans bien des cas, une pièce suffit. Le ballon est remis "
-             "en service et sa température contrôlée."),
+             "Plombier des Plombiers Bretons intervenant sur une chaudière murale et son chauffe-eau",
+             "Intervention sur chaudière et chauffe-eau",
+             "Plus d'eau chaude, pression qui chute, appareil en défaut&nbsp;: nous "
+             "contrôlons les organes un par un — circulateur, vase d'expansion, sécurité — "
+             "avant d'envisager un remplacement. Dans bien des cas, une pièce suffit, et "
+             "l'appareil est remis en service devant vous."),
             ("plomberie-3.jpg",
-             "Remplacement d'une canalisation enterrée par un plombier",
-             "Remplacement de canalisation enterrée",
-             "Quand une canalisation extérieure est percée ou affaissée, la réparation "
-             "passe par la reprise du tronçon. Nous ouvrons au plus juste, remplaçons la "
-             "section défectueuse avec des raccords adaptés, puis testons l'étanchéité "
-             "avant de refermer la tranchée."),
+             "Plombier des Plombiers Bretons remplaçant une canalisation PVC encastrée dans un mur ouvert",
+             "Reprise de canalisation encastrée",
+             "Quand une canalisation encastrée fuit ou se fissure, la réparation passe par "
+             "la reprise du tronçon. Nous ouvrons au plus juste, remplaçons la section "
+             "défectueuse avec des raccords adaptés, puis testons l'étanchéité avant de "
+             "refermer la cloison."),
             ("plomberie-4.jpg",
-             "Plombier raccordant les alimentations sous un meuble vasque "
-             "lors d'une installation de salle de bain",
-             "Installation de salle de bain",
+             "Plombier des Plombiers Bretons posant une cuvette de WC suspendu sur son bâti-support",
+             "Pose de WC suspendu",
              "Sur une salle de bain neuve ou rénovée, nous reprenons les alimentations et "
-             "les évacuations avant la pose des sanitaires. Chaque raccord est mis en "
-             "pression et vérifié avant d'être encastré&nbsp;: c'est à ce moment précis "
+             "les évacuations, puis posons bâti-support et cuvette. Chaque raccord est mis "
+             "en pression et vérifié avant d'être encastré&nbsp;: c'est à ce moment précis "
              "que se jouent les fuites futures."),
         ],
         "photo_equipe": ("plomberie-equipe.jpg",
-                         "Plombier remplaçant le flexible d'alimentation d'un WC",
-                         "Remplacement de flexible de WC",
-                         "Un flexible d'alimentation qui suinte finit toujours par lâcher. "
-                         "Le remplacement prend quelques minutes, coupure comprise, et "
-                         "évite un dégât des eaux qui coûterait cent fois plus cher."),
+                         "Plombier des Plombiers Bretons réparant un mitigeur thermostatique de douche",
+                         "Réparation de mitigeur de douche",
+                         "Un mitigeur qui goutte ou ne tient plus la température se répare "
+                         "le plus souvent sans changer l'appareil&nbsp;: cartouche, joints "
+                         "ou clapets, remplacés sur place."),
         "prose_h3": [
             ("Les dépannages les plus demandés {art} {dept}",
              ["Fuite sur flexible, siphon ou raccord sous évier",
@@ -489,17 +488,17 @@ PHOTOS_ACCUEIL = [
      "Inspection vidéo par caméra",
      "La caméra montre en direct l'état de la paroi et localise le défaut au mètre "
      "près&nbsp;: racine, affaissement, fissure. Diagnostic remis par écrit."),
-    ("plomberie-1.jpg", "Recherche de fuite sous un lavabo par un plombier",
+    ("plomberie-1.jpg", "Démontage d'un siphon sous évier par un plombier",
      "Recherche de fuite",
      "Siphon, flexible ou raccord mural&nbsp;: nous identifions le point de fuite avant "
      "de démonter quoi que ce soit, et nous chiffrons la réparation avant d'agir."),
-    ("plomberie-2.jpg", "Intervention sur un chauffe-eau par un plombier",
-     "Intervention sur chauffe-eau",
-     "Résistance, thermostat, groupe de sécurité&nbsp;: ces trois points sont testés "
+    ("plomberie-2.jpg", "Intervention sur une chaudière murale par un plombier",
+     "Chaudière et chauffe-eau",
+     "Circulateur, vase d'expansion, sécurités&nbsp;: chaque organe est contrôlé "
      "avant d'envisager un remplacement. Souvent, une pièce suffit."),
-    ("plomberie-4.jpg", "Raccordement des alimentations sous un meuble vasque",
-     "Installation de salle de bain",
-     "Alimentations et évacuations reprises avant la pose des sanitaires, chaque "
+    ("plomberie-4.jpg", "Pose d'une cuvette de WC suspendu par un plombier",
+     "Pose de WC suspendu",
+     "Alimentations et évacuations reprises avant la pose du bâti et de la cuvette, chaque "
      "raccord mis en pression et vérifié avant d'être encastré."),
 ]
 

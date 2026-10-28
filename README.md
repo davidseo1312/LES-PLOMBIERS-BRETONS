@@ -44,19 +44,22 @@ Charte alignée sur le logo : **bleu marine `#0b2a5b`** et **bleu roi
 `#1557c0`** pour la structure, **gris acier** pour le texte et les fonds
 neutres, et **orange `#d4600f` réservé aux boutons d'appel**. Titres en
 **Montserrat**, texte en **Inter** — deux fontes libres (OFL) hébergées
-localement, sans aucune requête vers un service tiers. Angles très arrondis
-(cartes, boutons, champs, et les grands blocs sombres posés en panneaux
-arrondis).
+localement, sans aucune requête vers un service tiers. **Angles droits**
+partout (une seule règle en tête de `style.css`), seul le voyant « en ligne »
+reste rond.
 
 **Logo** : `assets/img/logo-original.png` (fichier fourni, marges blanches
 retirées), décliné en `logo-200.webp` et `logo-400.webp` pour l'en-tête et le
 pied de page. Le favicon (`favicon.svg` / `favicon.png`) reprend la goutte
 bleue sur fond marine, plus lisible à 32 px que le logo complet.
 
-## Photos : en attente
+## Photos
 
-Aucune photo n'est fournie pour l'instant : chaque emplacement affiche un
-cadre « Photo en attente » avec le nom de fichier attendu. La liste complète
+Les **5 photos de plomberie** sont en place (fuite sous évier, chaudière,
+canalisation encastrée, WC suspendu, mitigeur de douche). Les photos de
+dégorgement et la photo d'équipe de l'accueil sont **en attente** : chaque
+emplacement vide affiche un cadre « Photo en attente » avec le nom de fichier
+attendu. La liste complète
 est dans `assets/img/photos/LISEZ-MOI.txt` — déposez les fichiers sous ces
 noms puis relancez le build.
 

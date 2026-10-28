@@ -23,6 +23,7 @@
 @font-face { font-family: "Montserrat"; font-style: normal; font-weight: 800; font-display: swap;
   src: url("../fonts/montserrat-800.woff2") format("woff2"); }
 
+/* --r* : conservés pour mémoire, neutralisés par la règle d'angles droits. */
 :root {
   /* Bleu marine (logo) : fonds sombres, titres */
   --marine: #0b2a5b;
@@ -66,8 +67,11 @@
   --ombre-forte: 0 2px 6px rgba(11, 42, 91, .08), 0 26px 52px rgba(11, 42, 91, .18);
 }
 
-/* ---------- Base ---------- */
-*, *::before, *::after { box-sizing: border-box; }
+/* ---------- Base ----------
+   Angles droits partout : c'est un parti pris de la charte. Seul le
+   voyant « en ligne » reste rond. */
+*, *::before, *::after { box-sizing: border-box; border-radius: 0 !important; }
+.dot { border-radius: 50% !important; }
 
 html {
   -webkit-text-size-adjust: 100%;
@@ -249,7 +253,6 @@ h3, h4 { font-weight: 700; line-height: 1.32; letter-spacing: -.012em; font-size
 /* ---------- Hero ---------- */
 .hero {
   position: relative; overflow: hidden;
-  margin: 0 16px; border-radius: var(--r-xl);
   background:
     radial-gradient(900px 480px at 88% -10%, rgba(127, 178, 255, .22), transparent 60%),
     radial-gradient(700px 420px at -5% 110%, rgba(212, 96, 15, .16), transparent 60%),
@@ -295,7 +298,6 @@ h3, h4 { font-weight: 700; line-height: 1.32; letter-spacing: -.012em; font-size
 .hero__villes svg { color: var(--bleu-clair); margin-top: 3px; flex: none; }
 .hero__villes strong { color: #fff; }
 
-main > .hero:first-child { margin-top: 14px; }
 .hero--compact { padding: 48px 0 84px; }
 .hero--compact .hero__sub { max-width: 780px; }
 .hero--compact h1 { max-width: 900px; }
@@ -376,7 +378,7 @@ main > .hero:first-child { margin-top: 14px; }
 .stats + .section { padding-top: 96px; }
 .section--pale { background: var(--gris-pale); }
 .section--fond { background: var(--bleu-pale-2); }
-.section--marine { margin: 0 16px; border-radius: var(--r-xl); background: var(--marine); color: rgba(255, 255, 255, .8); }
+.section--marine { background: var(--marine); color: rgba(255, 255, 255, .8); }
 .section--marine h2, .section--marine h3 { color: #fff; }
 .section--marine .lead { color: rgba(255, 255, 255, .72); }
 
@@ -820,7 +822,7 @@ main > .hero:first-child { margin-top: 14px; }
 .page-num.est-actif { background: var(--bleu); border-color: var(--bleu); color: #fff; }
 
 /* ---------- Pied de page ---------- */
-.footer { position: relative; background: var(--marine); color: rgba(255, 255, 255, .7); padding: 34px 0 0; margin: 60px 16px 16px; border-radius: var(--r-xl); }
+.footer { position: relative; background: var(--marine); color: rgba(255, 255, 255, .7); padding: 34px 0 0; margin-top: 0; }
 .vague { display: none; }
 .footer__appel {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px;
@@ -900,8 +902,6 @@ main > .hero:first-child { margin-top: 14px; }
 @media (max-width: 720px) {
   body { font-size: 17px; padding-bottom: 72px; }
   .container { padding: 0 16px; }
-  .hero, .section--marine { margin: 0 8px; border-radius: 26px; }
-  .footer { margin: 40px 8px 8px; border-radius: 26px; }
   .marque__logo { height: 58px; }
   .section { padding: 68px 0; }
   .stats + .section { padding-top: 64px; }
